@@ -12,7 +12,9 @@ import (
 
 func main() {
 	// TODO: 替换为你的 API Key
-	client, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY")
+	// Infura: https://sepolia.infura.io/v3/YOUR_API_KEY
+	// Alchemy: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/YOUR_API_KEY")
 	if err != nil {
 		log.Fatal(err)
 	}

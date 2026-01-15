@@ -10,8 +10,10 @@ import (
 )
 
 func main() {
-	// 连接到以太坊节点（请替换为你的 API Key）
-	client, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY")
+	// 连接到以太坊节点（替换为你的 API Key）
+	// Infura: https://sepolia.infura.io/v3/YOUR_API_KEY
+	// Alchemy: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/a63501622913410bb36a7f07309087aa")
 	if err != nil {
 		log.Fatal(err)
 	}

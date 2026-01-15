@@ -96,7 +96,9 @@ import (
 
 func main() {
     // 连接到以太坊节点
-    client, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY")
+    // Infura: https://sepolia.infura.io/v3/YOUR_API_KEY
+    // Alchemy: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+    client, err := ethclient.Dial("https://sepolia.infura.io/v3/YOUR_API_KEY")
     if err != nil {
         log.Fatal(err)
     }
@@ -164,7 +166,9 @@ import (
 )
 
 func main() {
-    client, err := ethclient.Dial("https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY")
+    // Infura: https://sepolia.infura.io/v3/YOUR_API_KEY
+    // Alchemy: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+    client, err := ethclient.Dial("https://sepolia.infura.io/v3/YOUR_API_KEY")
     if err != nil {
         log.Fatal(err)
     }
