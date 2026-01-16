@@ -1,0 +1,50 @@
+linters:
+  disable:
+    - errcheck    # 错误未检查（练习文件中故意留空）
+    - unused      # 未使用的变量/导入（TODO 练习中常见）
+    - gosimple    # 简化代码建议
+    - staticcheck # 静态检查
+    - structcheck # 未使用的结构体字段
+    - varcheck    # 未使用的全局变量
+    - typecheck   # 类型检查（用于练习中的占位代码）
+    - deadcode    # 死代码检测
+    - ineffassign # 无效赋值
+
+linters-settings:
+  govet:
+    enable-all: false
+
+issues:
+  exclude-rules:
+    # 忽略练习文件中的所有警告
+    - path: exercises/
+      linters:
+        - errcheck
+        - unused
+        - gosimple
+        - staticcheck
+
+    # 忽略 TODO 注释相关的警告
+    - source: "// .*TODO"
+      linters:
+        - errcheck
+        - unused
+
+    # 忽略注释掉的代码
+    - source: "// .*fmt\\.Printf"
+      linters:
+        - unused
+
+  # 不显示默认的 excludes
+  exclude-use-default: false
+  # 最大问题数量（0 表示无限制）
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  # 跳过特定目录
+  skip-dirs:
+    - solutions
+  # 跳过特定文件
+  skip-files:
+    - ".*\\.exercises\\.go$"

@@ -5,14 +5,18 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func main() {
-	// Infura: https://sepolia.infura.io/v3/YOUR_API_KEY
-	// Alchemy: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
-	client, err := ethclient.Dial("https://sepolia.infura.io/v3/YOUR_API_KEY")
+	// 从环境变量读取 API Key
+	apiKey := os.Getenv("INFURA_API_KEY")
+	if apiKey == "" {
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY\n例如: export INFURA_API_KEY=your-key-here")
+	}
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
