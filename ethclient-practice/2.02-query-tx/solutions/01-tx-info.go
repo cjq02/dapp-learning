@@ -12,10 +12,10 @@ import (
 )
 
 func main() {
-	// 从环境变量读取 API Key
+	// 连接 Sepolia 测试网络
 	apiKey := os.Getenv("INFURA_API_KEY")
 	if apiKey == "" {
-		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY\n例如: export INFURA_API_KEY=your-key-here")
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY")
 	}
 	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
 	if err != nil {
@@ -23,9 +23,8 @@ func main() {
 	}
 	defer client.Close()
 
-	blockNumber := big.NewInt(5671744)
-
-	// 获取区块和所有交易
+	// 获取区块
+	blockNumber := big.NewInt(10077132)
 	block, err := client.BlockByNumber(context.Background(), blockNumber)
 	if err != nil {
 		log.Fatal(err)
@@ -37,35 +36,63 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// 创建 EIP155 签名器
-	signer := types.NewEIP155Signer(chainID)
+	// 使用 CancunSigner 支持所有交易类型（包括 Blob 交易）
+	signer := types.NewCancunSigner(chainID)
 
-	// 遍历所有交易并显示信息
+	// 获取所有交易
+	transactions := block.Transactions()
+	txCount := len(transactions)
+
+	// 先打印交易数量
+	fmt.Printf("=== 区块 %d 包含 %d 笔交易 ===\n\n", blockNumber.Uint64(), txCount)
+
+	// 遍历并显示所有交易
 	fmt.Println("=== 交易列表 ===")
-	for i, tx := range block.Transactions() {
-		// 恢复发送者地址
+	for i, tx := range transactions {
 		sender, err := types.Sender(signer, tx)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// 转换金额为 Ether (1 Ether = 10^18 Wei)
+		// 转换金额为 Ether
 		valueInEther := new(big.Float).Quo(
 			new(big.Float).SetInt(tx.Value()),
 			big.NewFloat(1e18),
 		)
 
-		// 转换 Gas Price 为 Gwei (1 Gwei = 10^9 Wei)
-		gasPriceInGwei := new(big.Float).Quo(
-			new(big.Float).SetInt(tx.GasPrice()),
-			big.NewFloat(1e9),
-		)
+		// 格式化 Gas Price
+		gasPriceStr := formatGasPrice(tx)
 
+		// 显示交易信息
 		fmt.Printf("[%d] Hash: %s\n", i+1, tx.Hash().Hex())
 		fmt.Printf("    From: %s\n", sender.Hex())
-		fmt.Printf("    To: %s\n", tx.To().Hex())
+		to := "<合约创建>"
+		if tx.To() != nil {
+			to = tx.To().Hex()
+		}
+		fmt.Printf("    To: %s\n", to)
 		fmt.Printf("    Value: %.6f Ether\n", valueInEther)
-		fmt.Printf("    Gas Price: %.2f Gwei\n", gasPriceInGwei)
+		fmt.Printf("    Gas Price: %s\n", gasPriceStr)
 		fmt.Println()
 	}
+}
+
+// 格式化 Gas Price 显示
+func formatGasPrice(tx *types.Transaction) string {
+	weiToGwei := big.NewFloat(1e9)
+
+	if tx.Type() >= 2 {
+		// EIP-1559 或 Blob 交易
+		maxFee := new(big.Float).Quo(new(big.Float).SetInt(tx.GasFeeCap()), weiToGwei)
+		priority := new(big.Float).Quo(new(big.Float).SetInt(tx.GasTipCap()), weiToGwei)
+		result := fmt.Sprintf("MaxFee: %.2f, Priority: %.2f Gwei", maxFee, priority)
+		if tx.Type() == 3 {
+			result += " (Blob Tx)"
+		}
+		return result
+	}
+
+	// Legacy 或 EIP-2930 交易
+	gasPrice := new(big.Float).Quo(new(big.Float).SetInt(tx.GasPrice()), weiToGwei)
+	return fmt.Sprintf("%.2f Gwei", gasPrice)
 }
