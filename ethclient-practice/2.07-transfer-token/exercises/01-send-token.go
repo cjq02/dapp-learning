@@ -6,7 +6,7 @@
 // 3. 估算 Gas 并发送交易
 // 4. 等待交易确认
 //
-// 运行：export INFURA_API_KEY=your-key && export PRIVATE_KEY=your-key && export TOKEN_ADDRESS=0x... && export TO_ADDRESS=0x... && export AMOUNT=1000... && go run exercises/01-send-token.go
+// 运行：export INFURA_API_KEY=your-key && export PRIVATE_KEY=your-key && export TOKEN_ADDRESS=0x... && export TO_ADDRESS=0x... && export TOKEN_AMOUNT=1000... && go run exercises/01-send-token.go
 
 package main
 
@@ -36,10 +36,10 @@ func main() {
 	privateKeyHex := os.Getenv("PRIVATE_KEY")
 	tokenAddressHex := os.Getenv("TOKEN_ADDRESS")
 	toAddressHex := os.Getenv("TO_ADDRESS")
-	amountStr := os.Getenv("AMOUNT")
+	amountStr := os.Getenv("TOKEN_AMOUNT")
 
 	if apiKey == "" || privateKeyHex == "" || tokenAddressHex == "" || toAddressHex == "" || amountStr == "" {
-		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS, TO_ADDRESS, AMOUNT")
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS, TO_ADDRESS, TOKEN_AMOUNT")
 	}
 
 	// TODO 2: 连接到以太坊节点

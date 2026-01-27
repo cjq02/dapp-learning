@@ -513,7 +513,7 @@ export INFURA_API_KEY=your-key
 export PRIVATE_KEY=your-private-key
 export TOKEN_ADDRESS=0x...  # 代币合约地址
 export TO_ADDRESS=0x...     # 接收代币的地址
-export AMOUNT=1000000000000000000000  # 转账数量
+export TOKEN_AMOUNT=1000000000000000000000  # 转账数量（Wei 单位）
 go run exercises/01-send-token.go
 ```
 

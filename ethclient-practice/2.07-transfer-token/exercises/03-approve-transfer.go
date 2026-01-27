@@ -5,7 +5,7 @@
 // 2. 等待授权交易确认
 // 3. 使用 transferFrom(from, to, amount) 进行代理转账
 //
-// 运行：export INFURA_API_KEY=your-key && export PRIVATE_KEY=your-key && export TOKEN_ADDRESS=0x... && export SPENDER_ADDRESS=0x... && export TO_ADDRESS=0x... && export AMOUNT=... && go run exercises/03-approve-transfer.go
+// 运行：export INFURA_API_KEY=your-key && export PRIVATE_KEY=your-key && export TOKEN_ADDRESS=0x... && export SPENDER_ADDRESS=0x... && export TO_ADDRESS=0x... && export TOKEN_AMOUNT=... && go run exercises/03-approve-transfer.go
 
 package main
 
@@ -35,10 +35,10 @@ func main() {
 	tokenAddressHex := os.Getenv("TOKEN_ADDRESS")
 	spenderAddressHex := os.Getenv("SPENDER_ADDRESS")
 	toAddressHex := os.Getenv("TO_ADDRESS")
-	amountStr := os.Getenv("AMOUNT")
+	amountStr := os.Getenv("TOKEN_AMOUNT")
 
 	if apiKey == "" || privateKeyHex == "" || tokenAddressHex == "" || spenderAddressHex == "" || toAddressHex == "" || amountStr == "" {
-		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS, SPENDER_ADDRESS, TO_ADDRESS, AMOUNT")
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS, SPENDER_ADDRESS, TO_ADDRESS, TOKEN_AMOUNT")
 	}
 
 	client, err := ethclient.Dial("https://sepolia.infura.io/v3/"+apiKey)

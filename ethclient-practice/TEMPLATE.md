@@ -4,7 +4,7 @@
 
 ```
 参考 ~/web3/MetaNodeAcademy/Advanced1-backend-upgrade/ethclient实战/2.xx xxx
-再参考 2.01 创建 2.xx-xxx-name
+再参考 2.01和 TEMPLATE.md 创建 2.xx-xxx-name
 ```
 
 ## 标准目录结构
