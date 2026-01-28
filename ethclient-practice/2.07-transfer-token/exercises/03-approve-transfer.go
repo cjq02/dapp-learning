@@ -27,6 +27,15 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// tokenAmountToWei 将人类可读的代币数量转换为最小单位（Wei）
+func tokenAmountToWei(amount float64, decimals uint64) *big.Int {
+	decimalsBig := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
+	amountFloat := big.NewFloat(amount)
+	wei := new(big.Float).Mul(amountFloat, new(big.Float).SetInt(decimalsBig))
+	result, _ := wei.Int(nil)
+	return result
+}
+
 func main() {
 	fmt.Println("=== ERC20 授权并代理转账 ===")
 
@@ -63,8 +72,21 @@ func main() {
 	spenderAddress := common.HexToAddress(spenderAddressHex)
 	toAddress := common.HexToAddress(toAddressHex)
 
-	amount := new(big.Int)
-	amount.SetString(amountStr, 10)
+	// 查询代币小数位数（默认 18）
+	var decimals uint64 = 18
+	{
+		// TODO: 可选，查询代币的 decimals()
+		// 如果查询失败，使用默认值 18
+	}
+
+	// 将人类可读的数量转换为最小单位
+	var amountFloat float64
+	_, err := fmt.Sscanf(amountStr, "%f", &amountFloat)
+	if err != nil {
+		log.Fatalf("错误: 无法解析代币数量 %s: %v", amountStr, err)
+	}
+	amount := tokenAmountToWei(amountFloat, decimals)
+	fmt.Printf("代币数量: %s (decimals: %d) = %s\n", amountStr, decimals, amount.String())
 
 	// TODO 1: 构建 approve 函数调用数据
 	// 函数签名: approve(address,uint256)

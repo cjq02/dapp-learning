@@ -20,6 +20,18 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// tokenAmountToWei 将人类可读的代币数量转换为最小单位（Wei）
+// amount: 代币数量，如 1000 表示 1000 个代币
+// decimals: 代币小数位数，如 18 表示 18 位小数（大多数 ERC20 代币）
+// 返回: 转换后的最小单位数量
+func tokenAmountToWei(amount float64, decimals uint64) *big.Int {
+	decimalsBig := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
+	amountFloat := big.NewFloat(amount)
+	wei := new(big.Float).Mul(amountFloat, new(big.Float).SetInt(decimalsBig))
+	result, _ := wei.Int(nil)
+	return result
+}
+
 func main() {
 	fmt.Println("=== ERC20 代币转账 ===")
 
@@ -73,6 +85,40 @@ func main() {
 	toAddress := common.HexToAddress(toAddressHex)
 	tokenAddress := common.HexToAddress(tokenAddressHex)
 
+	// 查询代币小数位数（可选，默认使用 18）
+	// 大多数 ERC20 代币使用 18 位小数
+	var decimals uint64 = 18
+	{
+		// 尝试查询代币的 decimals()
+		decimalsFnSignature := []byte("decimals()")
+		hash := sha3.NewLegacyKeccak256()
+		hash.Write(decimalsFnSignature)
+		decimalsMethodID := hash.Sum(nil)[:4]
+
+		callData := append(decimalsMethodID)
+		result, err := client.CallContract(context.Background(), ethereum.CallMsg{
+			To:   &tokenAddress,
+			Data: callData,
+		}, nil)
+
+		if err == nil && len(result) >= 32 {
+			decimals = new(big.Int).SetBytes(result).Uint64()
+		}
+		// 如果查询失败，使用默认值 18
+	}
+
+	// 将人类可读的数量转换为最小单位
+	// amountStr 是字符串，如 "1000" 表示 1000 个代币
+	var amountFloat float64
+	_, err := fmt.Sscanf(amountStr, "%f", &amountFloat)
+	if err != nil {
+		log.Fatalf("错误: 无法解析代币数量 %s: %v", amountStr, err)
+	}
+
+	amount := tokenAmountToWei(amountFloat, decimals)
+	fmt.Printf("转账数量: %s 代币 (decimals: %d)\n", amountStr, decimals)
+	fmt.Printf("转换为最小单位: %s\n", amount.String())
+
 	// 构建 transfer 函数调用数据
 	// 函数签名: transfer(address,uint256)
 
@@ -87,11 +133,8 @@ func main() {
 	paddedAddress := common.LeftPadBytes(toAddress.Bytes(), 32)
 	fmt.Printf("Padded Address: %s\n", hexutil.Encode(paddedAddress))
 
-	// 设置金额并填充
-	amount := new(big.Int)
-	amount.SetString(amountStr, 10)
+	// 填充金额到 32 字节
 	paddedAmount := common.LeftPadBytes(amount.Bytes(), 32)
-	fmt.Printf("Amount: %s\n", amount.String())
 	fmt.Printf("Padded Amount: %s\n", hexutil.Encode(paddedAmount))
 
 	// 组合数据

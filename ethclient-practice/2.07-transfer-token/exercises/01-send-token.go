@@ -17,6 +17,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -28,6 +29,18 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// tokenAmountToWei 将人类可读的代币数量转换为最小单位（Wei）
+// amount: 代币数量，如 1000 表示 1000 个代币
+// decimals: 代币小数位数，如 18 表示 18 位小数（大多数 ERC20 代币）
+// 返回: 转换后的最小单位数量
+func tokenAmountToWei(amount float64, decimals uint64) *big.Int {
+	decimalsBig := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
+	amountFloat := big.NewFloat(amount)
+	wei := new(big.Float).Mul(amountFloat, new(big.Float).SetInt(decimalsBig))
+	result, _ := wei.Int(nil)
+	return result
+}
+
 func main() {
 	fmt.Println("=== ERC20 代币转账 ===")
 
@@ -36,16 +49,21 @@ func main() {
 	privateKeyHex := os.Getenv("PRIVATE_KEY")
 	tokenAddressHex := os.Getenv("TOKEN_ADDRESS")
 	toAddressHex := os.Getenv("TO_ADDRESS")
-	amountStr := os.Getenv("TOKEN_AMOUNT")
+	tokenAmount := os.Getenv("TOKEN_AMOUNT")
 
-	if apiKey == "" || privateKeyHex == "" || tokenAddressHex == "" || toAddressHex == "" || amountStr == "" {
+	if apiKey == "" || privateKeyHex == "" || tokenAddressHex == "" || toAddressHex == "" || tokenAmount == "" {
 		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS, TO_ADDRESS, TOKEN_AMOUNT")
 	}
 
 	// TODO 2: 连接到以太坊节点
 	var client *ethclient.Client
+	var err error
 	{
 		// 在这里填写代码
+		client, err = ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
+		if err != nil {
+			log.Fatal("错误: 连接到以太坊节点失败", err)
+		}
 	}
 	defer client.Close()
 
@@ -54,6 +72,11 @@ func main() {
 	var fromAddress common.Address
 	{
 		// 在这里填写代码
+		privateKey, err = crypto.HexToECDSA(privateKeyHex)
+		if err != nil {
+			log.Fatal("错误: 解析私钥失败", err)
+		}
+		fromAddress = crypto.PubkeyToAddress(privateKey.PublicKey)
 	}
 
 	// TODO 4: 获取 Nonce 和 Gas Price
@@ -61,14 +84,61 @@ func main() {
 	var gasPrice *big.Int
 	{
 		// 在这里填写代码
+		nonce, err = client.PendingNonceAt(context.Background(), fromAddress)
+		if err != nil {
+			log.Fatal("错误: 获取 Nonce 失败", err)
+		}
+		gasPrice, err = client.SuggestGasPrice(context.Background())
+		if err != nil {
+			log.Fatal("错误: 获取 Gas Price 失败", err)
+		}
 	}
 
 	fmt.Printf("发送方: %s\n", fromAddress.Hex())
 	fmt.Printf("Nonce: %d\n", nonce)
+	fmt.Printf("Gas Price: %s\n", gasPrice.String())
 
 	// TODO 5: 设置地址
 	toAddress := common.HexToAddress(toAddressHex)
 	tokenAddress := common.HexToAddress(tokenAddressHex)
+
+	// TODO 5.1: 查询代币小数位数（可选，默认使用 18）
+	// 大多数 ERC20 代币使用 18 位小数，如果查询失败则使用默认值
+	var decimals uint64 = 18 // 默认值
+	{
+		// 可选：查询代币的 decimals()
+		// 如果查询失败，使用默认值 18
+		// 提示：构建 "decimals()" 函数调用数据，使用 client.CallContract()
+		hash := crypto.Keccak256([]byte("decimals()"))
+		methodID := hash[:4]
+		result, err := client.CallContract(context.Background(), ethereum.CallMsg{
+			To:   &tokenAddress,
+			Data: methodID,
+		}, nil)
+		decimals = new(big.Int).SetBytes(result).Uint64()
+		if err != nil {
+			log.Fatal("错误: 查询代币小数位数失败", err)
+		}
+	}
+
+	// TODO 5.2: 将人类可读的数量转换为最小单位
+	var amount *big.Int
+	{
+		// 在这里填写代码
+		// 提示：将 tokenAmount 解析为 float64，然后使用 tokenAmountToWei() 转换
+		// 例如：tokenAmount = "1000" 表示 1000 个代币
+		// 如果代币有 18 位小数，则转换为 1000 * 10^18
+		tokenAmountFloat, err := strconv.ParseFloat(tokenAmount, 64)
+		if err != nil {
+			log.Fatal("错误: 转换代币数量失败", err)
+		}
+		amount = tokenAmountToWei(tokenAmountFloat, decimals)
+		if err != nil {
+			log.Fatal("错误: 转换代币数量失败", err)
+		}
+	}
+	fmt.Printf("转账数量: %s 代币 (decimals: %d)\n", tokenAmount, decimals)
+	fmt.Printf("转换为最小单位: %s\n", amount.String())
 
 	// TODO 6: 构建 transfer 函数调用数据
 	// 函数签名: transfer(address,uint256)
@@ -79,6 +149,9 @@ func main() {
 		{
 			// 在这里填写代码
 			// 提示：使用 sha3.NewLegacyKeccak256() 计算 "transfer(address,uint256)" 的哈希
+			hash := sha3.NewLegacyKeccak256()
+			hash.Write([]byte("transfer(address,uint256)"))
+			methodID = hash.Sum(nil)[:4]
 		}
 		fmt.Printf("Method ID: %s\n", hexutil.Encode(methodID))
 
@@ -87,17 +160,24 @@ func main() {
 		{
 			// 在这里填写代码
 			// 提示：使用 common.LeftPadBytes()
+			paddedAddress = common.LeftPadBytes(toAddress.Bytes(), 32)
+			if err != nil {
+				log.Fatal("错误: 填充地址失败", err)
+
+			}
 		}
 		fmt.Printf("Padded Address: %s\n", hexutil.Encode(paddedAddress))
 
-		// 6.3 设置金额并填充
-		amount := new(big.Int)
-		amount.SetString(amountStr, 10)
+		// 6.3 填充金额到 32 字节
 		var paddedAmount []byte
 		{
 			// 在这里填写代码
+			// 提示：使用 common.LeftPadBytes(amount.Bytes(), 32)
+			paddedAmount = common.LeftPadBytes(amount.Bytes(), 32)
+			if err != nil {
+				log.Fatal("错误: 填充金额失败", err)
+			}
 		}
-		fmt.Printf("Amount: %s\n", amount.String())
 		fmt.Printf("Padded Amount: %s\n", hexutil.Encode(paddedAmount))
 
 		// 6.4 组合数据
@@ -112,6 +192,13 @@ func main() {
 		// 在这里填写代码
 		// 提示：使用 client.EstimateGas()
 		// 注意：To 字段应该是代币合约地址
+		gasLimit, err = client.EstimateGas(context.Background(), ethereum.CallMsg{
+			To:   &tokenAddress,
+			Data: data,
+		})
+		if err != nil {
+			log.Fatal("错误: 估算 Gas 失败", err)
+		}
 	}
 	fmt.Printf("Estimated Gas: %d\n", gasLimit)
 
@@ -122,18 +209,30 @@ func main() {
 	var tx *types.Transaction
 	{
 		// 在这里填写代码
+		tx = types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, data)
+		if err != nil {
+			log.Fatal("错误: 构建交易失败", err)
+		}
 	}
 
 	// TODO 9: 获取 Chain ID
 	var chainID *big.Int
 	{
 		// 在这里填写代码
+		chainID, err = client.NetworkID(context.Background())
+		if err != nil {
+			log.Fatal("错误: 获取 Chain ID 失败", err)
+		}
 	}
 
 	// TODO 10: 签名并发送交易
 	var signedTx *types.Transaction
 	{
 		// 在这里填写代码
+		signedTx, err = types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+		if err != nil {
+			log.Fatal("错误: 签名交易失败", err)
+		}
 	}
 
 	fmt.Printf("\n交易已发送: %s\n", signedTx.Hash().Hex())
