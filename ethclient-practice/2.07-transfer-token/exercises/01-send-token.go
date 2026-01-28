@@ -244,6 +244,11 @@ func main() {
 		if err != nil {
 			log.Fatal("错误: 签名交易失败", err)
 		}
+		// 发送交易到网络
+		err = client.SendTransaction(context.Background(), signedTx)
+		if err != nil {
+			log.Fatal("错误: 发送交易失败", err)
+		}
 	}
 
 	fmt.Printf("\n交易已发送: %s\n", signedTx.Hash().Hex())
