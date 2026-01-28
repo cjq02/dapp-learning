@@ -69,18 +69,26 @@ func main() {
 		log.Fatal("错误: 获取 Nonce 失败", err)
 	}
 
-	// 获取 Gas Price
-	gasPrice, err := client.SuggestGasPrice(context.Background())
+	// 获取 Gas Price 并调整为更合理的值
+	suggestedGasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
 		log.Fatal("错误: 获取 Gas Price 失败", err)
 	}
 
+	// 确保最低 Gas Price 为 10 Gwei (Sepolia 测试网的推荐值)
+	minGasPrice := big.NewInt(10000000000) // 10 Gwei = 10^10 wei
+	gasPrice := new(big.Int)
+	if suggestedGasPrice.Cmp(minGasPrice) < 0 {
+		gasPrice = minGasPrice
+		fmt.Printf("建议 Gas Price 太低，使用最低值: 10 Gwei\n")
+	} else {
+		gasPrice = suggestedGasPrice
+	}
+	fmt.Printf("Gas Price: %s wei (%.2f Gwei)\n", gasPrice.String(), new(big.Float).Quo(new(big.Float).SetInt(gasPrice), big.NewFloat(1e9)))
+
 	// 调用 mint() 函数
 	fmt.Println("调用 mint() 函数...")
 	mintToken(client, privateKey, fromAddress, tokenAddress, ethToSend, nonce, gasPrice)
-
-	// 等待交易确认
-	time.Sleep(3 * time.Second)
 
 	// 查询余额
 	fmt.Println("\n=== 检查余额 ===")
@@ -97,7 +105,7 @@ func mintToken(client *ethclient.Client, privateKey *ecdsa.PrivateKey, fromAddre
 
 	// 估算 Gas
 	gasLimit, err := client.EstimateGas(context.Background(), ethereum.CallMsg{
-		From: &fromAddress,
+		From: fromAddress,
 		To:   &tokenAddress,
 		Data: data,
 		Value: value,
@@ -131,8 +139,30 @@ func mintToken(client *ethclient.Client, privateKey *ecdsa.PrivateKey, fromAddre
 	}
 
 	fmt.Printf("\n✅ 交易已发送: %s\n", signedTx.Hash().Hex())
-	fmt.Printf("查看: https://sepolia.etherscan.io/tx/%s\n", signedTx.Hash().Hex())
-	fmt.Println("\n等待交易确认...")
+	fmt.Printf("查看: https://sepolia.etherscan.io/tx/%s\n\n", signedTx.Hash().Hex())
+	fmt.Println("等待交易确认...")
+
+	// 等待交易确认
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	for {
+		receipt, err := client.TransactionReceipt(ctx, signedTx.Hash())
+		if err != nil {
+			fmt.Println("交易未确认，等待中...")
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		if receipt.Status == 1 {
+			fmt.Printf("\n✅ 交易成功！\n")
+			fmt.Printf("区块号: %d\n", receipt.BlockNumber.Uint64())
+			fmt.Printf("Gas Used: %d\n", receipt.GasUsed)
+		} else {
+			fmt.Printf("\n❌ 交易失败\n")
+		}
+		break
+	}
 }
 
 func checkBalance(client *ethclient.Client, tokenAddress, account common.Address) {

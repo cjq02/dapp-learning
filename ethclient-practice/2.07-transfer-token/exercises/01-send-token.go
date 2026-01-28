@@ -88,15 +88,23 @@ func main() {
 		if err != nil {
 			log.Fatal("错误: 获取 Nonce 失败", err)
 		}
-		gasPrice, err = client.SuggestGasPrice(context.Background())
+		// 获取建议 Gas Price，但设置最低值为 10 Gwei
+		suggestedGasPrice, err := client.SuggestGasPrice(context.Background())
 		if err != nil {
 			log.Fatal("错误: 获取 Gas Price 失败", err)
+		}
+		// 确保最低 Gas Price 为 10 Gwei (Sepolia 测试网的推荐值)
+		minGasPrice := big.NewInt(10000000000) // 10 Gwei = 10^10 wei
+		if suggestedGasPrice.Cmp(minGasPrice) < 0 {
+			gasPrice = minGasPrice
+		} else {
+			gasPrice = suggestedGasPrice
 		}
 	}
 
 	fmt.Printf("发送方: %s\n", fromAddress.Hex())
 	fmt.Printf("Nonce: %d\n", nonce)
-	fmt.Printf("Gas Price: %s\n", gasPrice.String())
+	fmt.Printf("Gas Price: %s wei (%.2f Gwei)\n", gasPrice.String(), new(big.Float).Quo(new(big.Float).SetInt(gasPrice), big.NewFloat(1e9)))
 
 	// TODO 5: 设置地址
 	toAddress := common.HexToAddress(toAddressHex)
@@ -192,7 +200,9 @@ func main() {
 		// 在这里填写代码
 		// 提示：使用 client.EstimateGas()
 		// 注意：To 字段应该是代币合约地址
+		// 注意：需要指定 From 字段，某些合约依赖发送者地址
 		gasLimit, err = client.EstimateGas(context.Background(), ethereum.CallMsg{
+			From: fromAddress,
 			To:   &tokenAddress,
 			Data: data,
 		})
@@ -209,7 +219,8 @@ func main() {
 	var tx *types.Transaction
 	{
 		// 在这里填写代码
-		tx = types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, data)
+		// ERC20 转账：交易的 to 是代币合约地址，接收代币的地址在 data 中编码
+		tx = types.NewTransaction(nonce, tokenAddress, value, gasLimit, gasPrice, data)
 		if err != nil {
 			log.Fatal("错误: 构建交易失败", err)
 		}
