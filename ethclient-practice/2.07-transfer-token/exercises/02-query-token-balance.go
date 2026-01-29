@@ -20,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/dapp-learning/ethclient/transfer-token/util"
+	"github.com/dapp-learning/ethclient/util"
 )
 
 func main() {

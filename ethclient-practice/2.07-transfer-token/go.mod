@@ -3,9 +3,12 @@ module github.com/dapp-learning/ethclient/transfer-token
 go 1.21
 
 require (
+	github.com/dapp-learning/ethclient/util v0.0.0
 	github.com/ethereum/go-ethereum v1.13.14
 	golang.org/x/crypto v0.17.0
 )
+
+replace github.com/dapp-learning/ethclient/util => ../util
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
