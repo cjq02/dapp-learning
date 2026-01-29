@@ -2,9 +2,11 @@
 package util
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -40,4 +42,18 @@ func BuildCallData(signature string, args ...[]byte) []byte {
 func WeiToTokenAmount(balance *big.Int, decimals uint64) *big.Float {
 	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
 	return new(big.Float).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(divisor))
+}
+
+// SuggestGasPrice 获取建议的 Gas Price，并设置最低值
+// minGasPrice: 最低 Gas Price（单位：wei），例如 10000000000 表示 10 Gwei
+func SuggestGasPrice(ctx context.Context, client *ethclient.Client, minGasPrice *big.Int) (*big.Int, error) {
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// 确保不低于最低值
+	if gasPrice.Cmp(minGasPrice) < 0 {
+		gasPrice = minGasPrice
+	}
+	return gasPrice, nil
 }

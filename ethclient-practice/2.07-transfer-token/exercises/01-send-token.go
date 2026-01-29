@@ -6,7 +6,11 @@
 // 3. 估算 Gas 并发送交易
 // 4. 等待交易确认
 //
-// 运行：export INFURA_API_KEY=your-key && export PRIVATE_KEY=your-key && export TOKEN_ADDRESS=0x... && export TO_ADDRESS=0x... && export TOKEN_AMOUNT=1000... && go run exercises/01-send-token.go
+// 运行：export INFURA_API_KEY=your-key && export PRIVATE_KEY=your-key && export TOKEN_ADDRESS=0x... && go run exercises/01-send-token.go
+//
+// 说明：
+// - TOKEN_AMOUNT: 从控制台输入转账数量（人类可读单位，如 1000 表示 1000 个代币）
+// - TO_ADDRESS: 从控制台输入接收地址
 
 package main
 
@@ -37,11 +41,27 @@ func main() {
 	apiKey := os.Getenv("INFURA_API_KEY")
 	privateKeyHex := os.Getenv("PRIVATE_KEY")
 	tokenAddressHex := os.Getenv("TOKEN_ADDRESS")
-	toAddressHex := os.Getenv("TO_ADDRESS")
-	tokenAmount := os.Getenv("TOKEN_AMOUNT")
 
-	if apiKey == "" || privateKeyHex == "" || tokenAddressHex == "" || toAddressHex == "" || tokenAmount == "" {
-		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS, TO_ADDRESS, TOKEN_AMOUNT")
+	if apiKey == "" || privateKeyHex == "" || tokenAddressHex == "" {
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS")
+	}
+
+	// 从控制台输入转账数量
+	var tokenAmount string
+	fmt.Print("请输入转账数量（人类可读单位，如 1000 表示 1000 个代币）: ")
+	fmt.Scanln(&tokenAmount)
+
+	if tokenAmount == "" {
+		log.Fatal("错误: 转账数量不能为空")
+	}
+
+	// 从控制台输入接收地址
+	var toAddressHex string
+	fmt.Print("请输入接收地址: ")
+	fmt.Scanln(&toAddressHex)
+
+	if toAddressHex == "" {
+		log.Fatal("错误: 接收地址不能为空")
 	}
 
 	// TODO 2: 连接到以太坊节点
@@ -78,16 +98,9 @@ func main() {
 			log.Fatal("错误: 获取 Nonce 失败", err)
 		}
 		// 获取建议 Gas Price，但设置最低值为 10 Gwei
-		suggestedGasPrice, err := client.SuggestGasPrice(context.Background())
+		gasPrice, err = util.SuggestGasPrice(context.Background(), client, big.NewInt(10000000000)) // 最低 10 Gwei
 		if err != nil {
 			log.Fatal("错误: 获取 Gas Price 失败", err)
-		}
-		// 确保最低 Gas Price 为 10 Gwei (Sepolia 测试网的推荐值)
-		minGasPrice := big.NewInt(10000000000) // 10 Gwei = 10^10 wei
-		if suggestedGasPrice.Cmp(minGasPrice) < 0 {
-			gasPrice = minGasPrice
-		} else {
-			gasPrice = suggestedGasPrice
 		}
 	}
 

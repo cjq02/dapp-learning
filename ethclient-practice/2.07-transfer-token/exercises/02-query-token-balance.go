@@ -28,10 +28,18 @@ func main() {
 
 	apiKey := os.Getenv("INFURA_API_KEY")
 	tokenAddressHex := os.Getenv("TOKEN_ADDRESS")
-	targetAddressHex := os.Getenv("TARGET_ADDRESS")
 
-	if apiKey == "" || tokenAddressHex == "" || targetAddressHex == "" {
-		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, TOKEN_ADDRESS, TARGET_ADDRESS")
+	if apiKey == "" || tokenAddressHex == "" {
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, TOKEN_ADDRESS")
+	}
+
+	// 从控制台输入查询地址
+	var targetAddressHex string
+	fmt.Print("请输入查询地址: ")
+	fmt.Scanln(&targetAddressHex)
+
+	if targetAddressHex == "" {
+		log.Fatal("错误: 查询地址不能为空")
 	}
 
 	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
