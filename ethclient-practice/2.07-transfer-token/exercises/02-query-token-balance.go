@@ -18,9 +18,9 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"golang.org/x/crypto/sha3"
+
+	"github.com/dapp-learning/ethclient/transfer-token/util"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, TOKEN_ADDRESS, TARGET_ADDRESS")
 	}
 
-	client, err := ethclient.Dial("https://sepolia.infura.io/v3/"+apiKey)
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,6 +50,14 @@ func main() {
 		// 在这里填写代码
 		// 提示：构建 balanceOf 函数调用数据
 		// 提示：使用 client.CallContract() 调用合约
+		result, err := client.CallContract(context.Background(), ethereum.CallMsg{
+			To:   &tokenAddress,
+			Data: util.BuildCallData("balanceOf(address)", targetAddress.Bytes()),
+		}, nil)
+		if err != nil {
+			log.Fatal("错误: 查询代币余额失败", err)
+		}
+		balance = new(big.Int).SetBytes(result)
 	}
 
 	// TODO 2: 查询代币小数位数
@@ -59,6 +67,14 @@ func main() {
 		// 在这里填写代码
 		// 提示：构建 decimals 函数调用数据
 		// 提示：返回的 result 是 32 字节
+		result, err := client.CallContract(context.Background(), ethereum.CallMsg{
+			To:   &tokenAddress,
+			Data: util.BuildCallData("decimals()"),
+		}, nil)
+		if err != nil {
+			log.Fatal("错误: 查询代币小数位数失败", err)
+		}
+		decimals = new(big.Int).SetBytes(result).Uint64()
 	}
 
 	// TODO 3: 转换余额为人类可读格式
@@ -66,6 +82,7 @@ func main() {
 	var readableBalance *big.Float
 	{
 		// 在这里填写代码
+		readableBalance = util.WeiToTokenAmount(balance, decimals)
 	}
 
 	fmt.Printf("代币合约: %s\n", tokenAddress.Hex())
@@ -75,21 +92,4 @@ func main() {
 	fmt.Printf("可读余额: %s\n", readableBalance.String())
 
 	fmt.Println("=== 完成 ===")
-}
-
-// 辅助函数：构建函数调用数据
-func buildCallData(signature string, args ...[]byte) []byte {
-	hash := sha3.NewLegacyKeccak256()
-	hash.Write([]byte(signature))
-	methodID := hash.Sum(nil)[:4]
-
-	var data []byte
-	data = append(data, methodID...)
-
-	for _, arg := range args {
-		padded := common.LeftPadBytes(arg, 32)
-		data = append(data, padded...)
-	}
-
-	return data
 }

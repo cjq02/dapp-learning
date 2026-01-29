@@ -26,20 +26,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"golang.org/x/crypto/sha3"
-)
 
-// tokenAmountToWei 将人类可读的代币数量转换为最小单位（Wei）
-// amount: 代币数量，如 1000 表示 1000 个代币
-// decimals: 代币小数位数，如 18 表示 18 位小数（大多数 ERC20 代币）
-// 返回: 转换后的最小单位数量
-func tokenAmountToWei(amount float64, decimals uint64) *big.Int {
-	decimalsBig := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
-	amountFloat := big.NewFloat(amount)
-	wei := new(big.Float).Mul(amountFloat, new(big.Float).SetInt(decimalsBig))
-	result, _ := wei.Int(nil)
-	return result
-}
+	"github.com/dapp-learning/ethclient/transfer-token/util"
+)
 
 func main() {
 	fmt.Println("=== ERC20 代币转账 ===")
@@ -117,11 +106,9 @@ func main() {
 		// 可选：查询代币的 decimals()
 		// 如果查询失败，使用默认值 18
 		// 提示：构建 "decimals()" 函数调用数据，使用 client.CallContract()
-		hash := crypto.Keccak256([]byte("decimals()"))
-		methodID := hash[:4]
 		result, err := client.CallContract(context.Background(), ethereum.CallMsg{
 			To:   &tokenAddress,
-			Data: methodID,
+			Data: util.BuildCallData("decimals()"),
 		}, nil)
 		decimals = new(big.Int).SetBytes(result).Uint64()
 		if err != nil {
@@ -140,7 +127,7 @@ func main() {
 		if err != nil {
 			log.Fatal("错误: 转换代币数量失败", err)
 		}
-		amount = tokenAmountToWei(tokenAmountFloat, decimals)
+		amount = util.TokenAmountToWei(tokenAmountFloat, decimals)
 		if err != nil {
 			log.Fatal("错误: 转换代币数量失败", err)
 		}
@@ -157,9 +144,8 @@ func main() {
 		{
 			// 在这里填写代码
 			// 提示：使用 sha3.NewLegacyKeccak256() 计算 "transfer(address,uint256)" 的哈希
-			hash := sha3.NewLegacyKeccak256()
-			hash.Write([]byte("transfer(address,uint256)"))
-			methodID = hash.Sum(nil)[:4]
+			data = util.BuildCallData("transfer(address,uint256)", toAddress.Bytes(), amount.Bytes())
+			methodID = data[:4]
 		}
 		fmt.Printf("Method ID: %s\n", hexutil.Encode(methodID))
 

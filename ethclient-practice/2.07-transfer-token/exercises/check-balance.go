@@ -18,9 +18,10 @@ func main() {
 	apiKey := os.Getenv("INFURA_API_KEY")
 	tokenAddress := os.Getenv("TOKEN_ADDRESS")
 	privateKeyHex := os.Getenv("PRIVATE_KEY")
+	toAddressHex := os.Getenv("TO_ADDRESS") // 可选：要查询的地址
 
-	if apiKey == "" || tokenAddress == "" || privateKeyHex == "" {
-		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, TOKEN_ADDRESS, PRIVATE_KEY")
+	if apiKey == "" || tokenAddress == "" {
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, TOKEN_ADDRESS")
 	}
 
 	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
@@ -31,12 +32,21 @@ func main() {
 
 	tokenContract := common.HexToAddress(tokenAddress)
 
-	// 获取您的地址
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
-	if err != nil {
-		log.Fatal("错误: 解析私钥失败", err)
+	// 确定要查询的地址
+	var userAddress common.Address
+	if toAddressHex != "" {
+		// 如果指定了查询地址，使用该地址
+		userAddress = common.HexToAddress(toAddressHex)
+	} else if privateKeyHex != "" {
+		// 否则使用私钥对应的地址
+		privateKey, err := crypto.HexToECDSA(privateKeyHex)
+		if err != nil {
+			log.Fatal("错误: 解析私钥失败", err)
+		}
+		userAddress = crypto.PubkeyToAddress(privateKey.PublicKey)
+	} else {
+		log.Fatal("错误: 请设置环境变量 PRIVATE_KEY 或 TO_ADDRESS")
 	}
-	userAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
 
 	// 调用 ERC20 合约的 balanceOf(address) 函数
 	// 1. 计算 balanceOf(address) 的方法 ID
@@ -61,12 +71,49 @@ func main() {
 	// 解析结果
 	balance := new(big.Int).SetBytes(result)
 
-	fmt.Printf("代币地址: %s\n", tokenAddress)
-	fmt.Printf("您的地址: %s\n", userAddress.Hex())
-	fmt.Printf("代币余额 (wei): %s\n", balance.String())
+	// 查询代币的 decimals
+	decimalsHash := crypto.Keccak256([]byte("decimals()"))
+	decimalsMethodID := decimalsHash[:4]
+	decimalsResult, err := client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &tokenContract,
+		Data: decimalsMethodID,
+	}, nil)
+	if err != nil {
+		log.Fatal("错误: 查询代币 decimals 失败", err)
+	}
+	if len(decimalsResult) == 0 {
+		log.Fatal("错误: 合约未返回 decimals 值")
+	}
+	decimals := new(big.Int).SetBytes(decimalsResult).Uint64()
 
-	// 转换为代币数量 (假设 18 位小数)
-	balanceFloat := new(big.Float).SetInt(balance)
-	balanceFloat.Quo(balanceFloat, big.NewFloat(1e18))
-	fmt.Printf("代币余额: %s 代币\n", balanceFloat.String())
+	// 查询合约地址本身的代币余额
+	paddedContractAddress := common.LeftPadBytes(tokenContract.Bytes(), 32)
+	contractData := append(methodID, paddedContractAddress...)
+	contractResult, err := client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &tokenContract,
+		Data: contractData,
+	}, nil)
+	if err != nil {
+		log.Fatal("错误: 查询合约地址代币余额失败", err)
+	}
+	contractBalance := new(big.Int).SetBytes(contractResult)
+
+	// 转换为代币数量的辅助函数
+	decimalsBig := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
+	formatBalance := func(b *big.Int) string {
+		balanceFloat := new(big.Float).SetInt(b)
+		balanceFloat.Quo(balanceFloat, new(big.Float).SetInt(decimalsBig))
+		return balanceFloat.Text('f', 0)
+	}
+
+	fmt.Printf("代币地址: %s\n", tokenAddress)
+	fmt.Printf("\n=== 接收地址余额 ===\n")
+	fmt.Printf("查询地址: %s\n", userAddress.Hex())
+	fmt.Printf("代币余额 (最小单位): %s\n", balance.String())
+	fmt.Printf("代币余额: %s 代币 (decimals: %d)\n", formatBalance(balance), decimals)
+	
+	fmt.Printf("\n=== 合约地址余额 ===\n")
+	fmt.Printf("合约地址: %s\n", tokenContract.Hex())
+	fmt.Printf("代币余额 (最小单位): %s\n", contractBalance.String())
+	fmt.Printf("代币余额: %s 代币 (decimals: %d)\n", formatBalance(contractBalance), decimals)
 }

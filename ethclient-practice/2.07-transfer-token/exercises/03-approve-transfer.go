@@ -16,25 +16,15 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"golang.org/x/crypto/sha3"
-)
 
-// tokenAmountToWei 将人类可读的代币数量转换为最小单位（Wei）
-func tokenAmountToWei(amount float64, decimals uint64) *big.Int {
-	decimalsBig := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
-	amountFloat := big.NewFloat(amount)
-	wei := new(big.Float).Mul(amountFloat, new(big.Float).SetInt(decimalsBig))
-	result, _ := wei.Int(nil)
-	return result
-}
+	"github.com/dapp-learning/ethclient/transfer-token/util"
+)
 
 func main() {
 	fmt.Println("=== ERC20 授权并代理转账 ===")
@@ -50,7 +40,7 @@ func main() {
 		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY, PRIVATE_KEY, TOKEN_ADDRESS, SPENDER_ADDRESS, TO_ADDRESS, TOKEN_AMOUNT")
 	}
 
-	client, err := ethclient.Dial("https://sepolia.infura.io/v3/"+apiKey)
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -77,15 +67,23 @@ func main() {
 	{
 		// TODO: 可选，查询代币的 decimals()
 		// 如果查询失败，使用默认值 18
+		result, err := client.CallContract(context.Background(), ethereum.CallMsg{
+			To:   &tokenAddress,
+			Data: util.BuildCallData("decimals()"),
+		}, nil)
+		if err != nil {
+			log.Fatal("错误: 查询代币小数位数失败", err)
+		}
+		decimals = new(big.Int).SetBytes(result).Uint64()
 	}
 
 	// 将人类可读的数量转换为最小单位
 	var amountFloat float64
-	_, err := fmt.Sscanf(amountStr, "%f", &amountFloat)
+	_, err = fmt.Sscanf(amountStr, "%f", &amountFloat)
 	if err != nil {
 		log.Fatalf("错误: 无法解析代币数量 %s: %v", amountStr, err)
 	}
-	amount := tokenAmountToWei(amountFloat, decimals)
+	amount := util.TokenAmountToWei(amountFloat, decimals)
 	fmt.Printf("代币数量: %s (decimals: %d) = %s\n", amountStr, decimals, amount.String())
 
 	// TODO 1: 构建 approve 函数调用数据
@@ -94,6 +92,7 @@ func main() {
 	{
 		// 在这里填写代码
 		// 提示：生成 methodID，填充 spenderAddress 和 amount
+		approveData = util.BuildCallData("approve(address,uint256)", spenderAddress.Bytes(), amount.Bytes())
 	}
 
 	fmt.Printf("授权地址: %s\n", spenderAddress.Hex())
