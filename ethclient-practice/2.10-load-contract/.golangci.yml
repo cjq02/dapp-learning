@@ -1,0 +1,19 @@
+linters:
+  disable:
+    - errcheck
+    - unused
+    - gosimple
+    - staticcheck
+
+issues:
+  exclude-rules:
+    - path: exercises/
+      linters:
+        - errcheck
+        - unused
+        - gosimple
+        - staticcheck
+
+run:
+  skip-dirs:
+    - solutions
