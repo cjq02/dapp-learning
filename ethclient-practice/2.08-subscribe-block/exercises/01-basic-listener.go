@@ -22,16 +22,25 @@ func main() {
 	// 提示：使用 ethclient.Dial，注意 URL 以 wss:// 开头
 	// var client *ethclient.Client
 	// client, err = ???
+	client, err := ethclient.Dial(wsURL)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 练习：创建用于接收区块头的通道
 	// 提示：使用 make 创建 chan *types.Header
-	// var headers chan *types.Header
-	// headers = ???
+	headers := make(chan *types.Header)
+	sub, err := client.SubscribeNewHead(context.Background(), headers)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 练习：订阅新区块事件
 	// 提示：使用 client.SubscribeNewHead
-	// var sub ethereum.Subscription
-	// sub, err = ???
+	sub, err = client.SubscribeNewHead(context.Background(), headers)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("开始监听新区块... (按 Ctrl+C 退出)")
 
@@ -49,4 +58,20 @@ func main() {
 	//         // 4. 打印交易数量
 	//     }
 	// }
+	for {
+		select {
+		case err := <-sub.Err():
+			log.Fatal(err)
+		case header := <-headers:
+			fmt.Println("新区块号:", header.Number.Uint64())
+			fmt.Println("新区块哈希:", header.Hash().Hex())
+			// 使用 BlockByNumber 而不是 BlockByHash，因为新区块可能尚未完全索引
+			block, err := client.BlockByNumber(context.Background(), header.Number)
+			if err != nil {
+				log.Printf("获取区块失败: %v", err)
+				continue
+			}
+			fmt.Println("交易数量:", len(block.Transactions()))
+		}
+	}
 }
