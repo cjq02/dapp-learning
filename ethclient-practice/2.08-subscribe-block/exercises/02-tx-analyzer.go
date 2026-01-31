@@ -14,11 +14,11 @@ import (
 
 // BlockStats 区块统计信息
 type BlockStats struct {
-	Number      uint64
-	Hash        string
-	TxCount     int
+	Number       uint64
+	Hash         string
+	TxCount      int
 	TotalGasUsed uint64
-	AvgGasPrice *big.Int
+	AvgGasPrice  *big.Int
 }
 
 func main() {
@@ -30,10 +30,19 @@ func main() {
 	// 练习：连接到以太坊节点
 	// var client *ethclient.Client
 	// client, err = ???
+	client, err := ethclient.Dial(wsURL)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 练习：创建通道并订阅
 	// var headers chan *types.Header
 	// var sub ethereum.Subscription
+	headers := make(chan *types.Header)
+	sub, err := client.SubscribeNewHead(context.Background(), headers)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 用于存储最近的区块统计（最多10个）
 	var stats []BlockStats
@@ -62,6 +71,48 @@ func main() {
 	//         // TODO: 打印当前区块的统计信息
 	//     }
 	// }
+	for {
+		select {
+		case err := <-sub.Err():
+			log.Fatal(err)
+		case header := <-headers:
+			block, err := client.BlockByNumber(context.Background(), header.Number)
+			if err != nil {
+				log.Printf("获取区块失败: %v", err)
+				continue
+			}
+			txCount := len(block.Transactions())
+			totalGasUsed := block.GasUsed()
+			avgGasPrice := calculateAverageGasPrice(block)
+
+			stat := BlockStats{
+				Number:       header.Number.Uint64(),
+				Hash:         header.Hash().Hex(),
+				TxCount:      txCount,
+				TotalGasUsed: totalGasUsed,
+				AvgGasPrice:  avgGasPrice,
+			}
+
+			mu.Lock()
+			stats = append(stats, stat)
+			if len(stats) > 10 {
+				stats = stats[1:]
+			}
+			mu.Unlock()
+
+			fmt.Printf("\n区块 #%d\n", block.Number().Uint64())
+			fmt.Printf("  交易数量: %d\n", txCount)
+			fmt.Printf("  总 Gas 使用: %d\n", totalGasUsed)
+			if avgGasPrice != nil {
+				fmt.Printf("  平均 Gas 价格: %s Gwei\n", avgGasPrice.String())
+			}
+			fmt.Printf("  区块哈希: %s\n", block.Hash().Hex())
+
+			mu.Lock()
+			printStats(stats)
+			mu.Unlock()
+		}
+	}
 }
 
 // 辅助函数：计算平均 Gas 价格
@@ -73,7 +124,11 @@ func calculateAverageGasPrice(block *types.Block) *big.Int {
 	//     total.Add(total, tx.GasPrice())
 	// }
 	// return new(big.Int).Div(total, big.NewInt(int64(len(block.Transactions()))))
-	return nil
+	total := new(big.Int)
+	for _, tx := range block.Transactions() {
+		total.Add(total, tx.GasPrice())
+	}
+	return new(big.Int).Div(total, big.NewInt(int64(len(block.Transactions()))))
 }
 
 // 辅助函数：打印统计列表
