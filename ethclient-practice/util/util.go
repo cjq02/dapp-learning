@@ -57,3 +57,10 @@ func SuggestGasPrice(ctx context.Context, client *ethclient.Client, minGasPrice 
 	}
 	return gasPrice, nil
 }
+
+// formatTokenBalance 格式化代币余额
+func FormatTokenBalance(balance *big.Int, decimals uint8) *big.Float {
+	fbal := new(big.Float)
+	fbal.SetString(balance.String())
+	return new(big.Float).Quo(fbal, new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)))
+}

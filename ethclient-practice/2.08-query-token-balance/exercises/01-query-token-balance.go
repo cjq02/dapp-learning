@@ -37,7 +37,7 @@ func main() {
 	tokenAddress := common.HexToAddress(tokenAddressHex)
 
 	// TODO 4: 创建合约实例
-	instance, err := erc20.NewIERC20(tokenAddress, client)
+	instance, err := erc20.NewErc20(tokenAddress, client)
 	if err != nil {
 		log.Fatal(err)
 	}
