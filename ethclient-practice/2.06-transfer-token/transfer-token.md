@@ -603,6 +603,6 @@ contract TestToken is ERC20 {
 
 ## 下一步学习
 
-- [智能合约部署](../2.10-deploy-contract/)
-- [智能合约交互](../2.11-contract-interact/)
-- [监听合约事件](../2.13-contract-events/)
+- [查询账户余额](../2.07-query-balance/)
+- [订阅新区块](../2.09-subscribe-block/)
+- [部署合约](../2.10-deploy-contract/)

@@ -450,5 +450,5 @@ go run exercises/03-multi-chain.go
 ## 下一步学习
 
 - [部署合约](../2.10-deploy-contract/)
-- [监听合约事件](../2.13-contract-events/)
-- [构建实时 DApp](../../advanced/)
+- [加载合约](../2.11-load-contract/)
+- [调用合约](../2.12-call-contract/)

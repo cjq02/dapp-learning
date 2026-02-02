@@ -346,6 +346,6 @@ go run exercises/03-tx-analyzer.go
 
 ## 下一步学习
 
-- [查询账户余额](../2.07-query-balance/)
-- [ETH 转账](../2.05-eth-transfer/)
-- [监听新区块](../2.09-subscribe-blocks/)
+- [查询交易回执](../2.03-query-receipt/)
+- [创建钱包](../2.04-create-wallet/)
+- [ETH 转账](../2.05-transfer-eth/)

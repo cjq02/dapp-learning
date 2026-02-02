@@ -572,6 +572,6 @@ go run exercises/03-predict-address.go
 
 ## 下一步学习
 
-- [加载合约](../2.10-load-contract/)
-- [调用合约函数](../2.11-call-contract/)
-- [监听合约事件](../2.13-contract-events/)
+- [加载合约](../2.11-load-contract/)
+- [调用合约](../2.12-call-contract/)
+- [订阅新区块](../2.09-subscribe-block/)

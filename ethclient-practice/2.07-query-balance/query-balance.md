@@ -422,6 +422,6 @@ go run exercises/03-balance-monitor.go
 
 ## 下一步学习
 
-- [ETH 转账](../2.06-transfer-eth/)
-- [签名交易](../2.07-sign-transaction/)
-- [ERC20 代币查询](../2.08-query-token-balance/)
+- [ETH 转账](../2.05-transfer-eth/)
+- [代币转账](../2.06-transfer-token/)
+- [订阅新区块](../2.09-subscribe-block/)

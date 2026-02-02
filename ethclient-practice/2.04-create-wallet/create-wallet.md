@@ -424,6 +424,6 @@ go run exercises/03-address-validator.go
 
 ## 下一步学习
 
-- [查询账户余额](../2.05-query-balance/)
-- [ETH 转账](../2.06-transfer-eth/)
-- [签名交易](../2.07-sign-transaction/)
+- [查询账户余额](../2.07-query-balance/)
+- [ETH 转账](../2.05-transfer-eth/)
+- [代币转账](../2.06-transfer-token/)

@@ -423,7 +423,7 @@ go run exercises/03-load-multiple.go
 
 ## 下一步学习
 
-- [调用合约函数](../2.11-call-contract/)（如果存在）
-- [监听合约事件](../2.13-contract-events/)（如果存在）
-- [ETH 转账](../2.06-transfer-eth/)
-- [代币转账](../2.07-transfer-token/)
+- [调用合约](../2.12-call-contract/)
+- [订阅新区块](../2.09-subscribe-block/)
+- [ETH 转账](../2.05-transfer-eth/)
+- [代币转账](../2.06-transfer-token/)

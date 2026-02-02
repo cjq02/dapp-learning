@@ -575,6 +575,6 @@ go run exercises/03-tx-monitor.go
 
 ## 下一步学习
 
-- [ERC20 代币转账](../2.07-transfer-token/)
-- [智能合约交互](../2.10-contract-interact/)
-- [事件监听](../2.13-contract-events/)
+- [代币转账](../2.06-transfer-token/)
+- [订阅新区块](../2.09-subscribe-block/)
+- [部署合约](../2.10-deploy-contract/)
