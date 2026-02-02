@@ -21,8 +21,8 @@ func main() {
 	}
 	defer client.Close()
 
-	// Sepolia 测试网 USDC 合约地址
-	tokenAddress := common.HexToAddress("0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8")
+	// 你的 Test Token 合约地址
+	tokenAddress := common.HexToAddress("0x8087EcA92385db7a72e7Afbe0Eb6e2338cB17BDA")
 
 	// 创建合约实例
 	instance, err := erc20.NewIERC20(tokenAddress, client)
@@ -30,8 +30,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// 指定要查询的地址
-	address := common.HexToAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb")
+	// 指定要查询的地址（这里使用部署合约的地址）
+	address := common.HexToAddress("0x8087EcA92385db7a72e7Afbe0Eb6e2338cB17BDA")
 
 	// 查询代币余额
 	bal, err := instance.BalanceOf(nil, address)

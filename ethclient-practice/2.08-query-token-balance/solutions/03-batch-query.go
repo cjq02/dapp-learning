@@ -43,14 +43,14 @@ func main() {
 
 	// 定义多个代币合约
 	tokens := []TokenInfo{
-		{common.HexToAddress("0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8"), "USD Coin", "USDC", 6},
+		{common.HexToAddress("0x8087EcA92385db7a72e7Afbe0Eb6e2338cB17BDA"), "Test Token", "TST", 18},
 		// 可以添加更多代币
 	}
 
 	// 要查询的地址列表
 	addresses := []common.Address{
-		common.HexToAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"),
-		common.HexToAddress("0x1234567890123456789012345678901234567890"),
+		common.HexToAddress("0x8087EcA92385db7a72e7Afbe0Eb6e2338cB17BDA"), // 部署合约的地址
+		common.HexToAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"),   // 示例地址
 	}
 
 	// 并发查询所有代币余额
@@ -114,7 +114,7 @@ func main() {
 		fmt.Println()
 	}
 
-	// 计算总资产价值（假设 USDC 价格 = $1）
+	// 计算总资产价值（假设 TST 价格 = $0.01）
 	fmt.Println("\n========== 总资产价值 ==========")
 	totalValue := big.NewFloat(0)
 	for _, addr := range addresses {

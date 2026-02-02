@@ -5,12 +5,15 @@ import (
 	"log"
 	"math"
 	"math/big"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/dapp-learning/ethclient/query-token-balance/erc20"
 )
 
+// TODO: 实现将余额转换为可读格式的函数
+// 提示：使用 big.Float 进行除法运算
 func formatTokenBalance(balance *big.Int, decimals uint8) *big.Float {
 	fbal := new(big.Float)
 	fbal.SetString(balance.String())
@@ -18,66 +21,59 @@ func formatTokenBalance(balance *big.Int, decimals uint8) *big.Float {
 }
 
 func main() {
-	// 连接到以太坊节点
-	client, err := ethclient.Dial("https://sepolia.infura.io/v3/YOUR_API_KEY")
+	// TODO 1: 从环境变量读取配置
+	apiKey := os.Getenv("INFURA_API_KEY")
+	if apiKey == "" {
+		log.Fatal("错误: 请设置环境变量 INFURA_API_KEY")
+	}
+
+	tokenAddressHex := os.Getenv("TOKEN_ADDRESS")
+	if tokenAddressHex == "" {
+		log.Fatal("错误: 请设置环境变量 TOKEN_ADDRESS")
+	}
+
+	// TODO 2: 连接到以太坊节点
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer client.Close()
 
-	// Sepolia 测试网 USDC 合约地址
-	tokenAddress := common.HexToAddress("0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8")
+	// TODO 3: 设置代币合约地址
+	// tokenAddress := common.HexToAddress("0x...")
 
-	// TODO: 创建合约实例
-	instance, err := erc20.NewIERC20(tokenAddress, client)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// TODO 4: 创建合约实例
+	// instance, err := erc20.NewIERC20(tokenAddress, client)
 
-	// TODO: 查询代币信息（名称、符号、精度）
-	name, err := instance.Name(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// TODO 5: 查询代币信息（名称、符号、精度）
+	// name, _ := instance.Name(nil)
+	// symbol, _ := instance.Symbol(nil)
+	// decimals, _ := instance.Decimals(nil)
 
-	symbol, err := instance.Symbol(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// TODO 6: 查询总供应量
+	// totalSupply, _ := instance.TotalSupply(nil)
 
-	decimals, err := instance.Decimals(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// TODO 7: 定义要查询的地址列表
+	// addresses := []common.Address{
+	//     common.HexToAddress("0x..."),
+	//     common.HexToAddress("0x..."),
+	// }
 
-	// TODO: 查询总供应量
-	totalSupply, err := instance.TotalSupply(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// TODO 8: 输出代币信息
+	// fmt.Println("========== 代币信息 ==========")
+	// fmt.Printf("名称: %s\n", name)
+	// fmt.Printf("符号: %s\n", symbol)
+	// fmt.Printf("精度: %d\n", decimals)
+	// fmt.Printf("总供应量: %s %s\n\n", formatTokenBalance(totalSupply, decimals).String(), symbol)
 
-	// TODO: 查询多个地址的余额
-	addresses := []common.Address{
-		common.HexToAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"),
-		common.HexToAddress("0x1234567890123456789012345678901234567890"),
-		common.HexToAddress("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"),
-	}
+	// TODO 9: 遍历地址列表，查询并输出每个地址的余额
+	// for _, addr := range addresses {
+	//     balance, err := instance.BalanceOf(nil, addr)
+	//     ...
+	// }
 
-	// 输出代币信息
-	fmt.Println("========== 代币信息 ==========")
-	fmt.Printf("名称: %s\n", name)
-	fmt.Printf("符号: %s\n", symbol)
-	fmt.Printf("精度: %d\n", decimals)
-	fmt.Printf("总供应量: %s %s\n\n", formatTokenBalance(totalSupply, decimals).String(), symbol)
-
-	// 输出余额表格
-	fmt.Println("========== 地址余额 ==========")
-	for _, addr := range addresses {
-		balance, err := instance.BalanceOf(nil, addr)
-		if err != nil {
-			log.Printf("查询地址 %s 余额失败: %v", addr.Hex(), err)
-			continue
-		}
-		fmt.Printf("%s: %s %s\n", addr.Hex(), formatTokenBalance(balance, decimals).String(), symbol)
-	}
+	// 移除下面的占位符代码，完成你的作业
+	_ = fmt.Sprintf("")
+	_ = common.HexToAddress("0x0")
+	_ = erc20.IERC20{}
 }
