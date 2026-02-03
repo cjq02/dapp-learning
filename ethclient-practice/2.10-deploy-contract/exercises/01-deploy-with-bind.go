@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"os"
 
+	store "github.com/dapp-learning/ethclient/deploy-contract/contract"
+	"github.com/dapp-learning/ethclient/util"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -33,21 +35,36 @@ func main() {
 	// 提示：使用 ethclient.Dial
 	// var client *ethclient.Client
 	// client, err = ???
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
 
 	// 练习：加载私钥
 	// 提示：使用 crypto.HexToECDSA，注意去掉 0x 前缀
-	// var privateKey *ecdsa.PrivateKey
-	// privateKey, err = ???
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 练习：获取链 ID
 	// 提示：使用 client.NetworkID
 	// var chainID *big.Int
 	// chainID, err = ???
+	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 练习：创建交易认证器
 	// 提示：使用 bind.NewKeyedTransactorWithChainID
 	// var auth *bind.TransactOpts
 	// auth, err = ???
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 练习：设置 Gas 参数
 	// 提示：
@@ -55,14 +72,28 @@ func main() {
 	// auth.GasLimit = uint64(300000)
 	// auth.GasPrice = gasPrice
 	// auth.Value = big.NewInt(0)
+	// 使用 util.SuggestGasPrice：获取建议 gasPrice，并设置最低值（避免过低导致长时间 pending）
+	minGasPrice := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e9)) // 10 gwei
+	gasPrice, err := util.SuggestGasPrice(context.Background(), client, minGasPrice)
+	if err != nil {
+		log.Fatal(err)
+	}
+	auth.GasPrice = gasPrice
+	// 部署合约时用较大的 GasLimit 上限，避免 out of gas。实际只扣 gasPrice×gasUsed，不会多付。
+	auth.GasLimit = 2_000_000
+	auth.Value = big.NewInt(0)
 
 	// 练习：部署合约
 	// 提示：使用 DeployStore（需要先编译生成 store.go）
 	// contractAddr, tx, instance, err := DeployStore(auth, client, "1.0")
-
+	contractAddr, tx, instance, err := store.DeployStore(auth, client, "1.0")
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println("合约部署成功！")
-	fmt.Printf("合约地址: %s\n", "contractAddr.Hex()")
-	fmt.Printf("交易哈希: %s\n", "tx.Hash().Hex()")
+	fmt.Printf("合约地址: %s\n", contractAddr.Hex())
+	fmt.Printf("交易哈希: %s\n", tx.Hash().Hex())
+	fmt.Printf("实例: %v\n", instance)
 
 	// 练习：等待交易确认
 	// 提示：使用 client.TransactionReceipt 轮询查询
@@ -70,4 +101,11 @@ func main() {
 	// if receipt.Status == 1 {
 	//     fmt.Println("合约已部署到链上")
 	// }
+	receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
+	if err != nil {
+		log.Fatal(err)
+	}
+	if receipt.Status == 1 {
+		fmt.Println("合约已部署到链上")
+	}
 }

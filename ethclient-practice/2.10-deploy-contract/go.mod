@@ -2,7 +2,12 @@ module github.com/dapp-learning/ethclient/deploy-contract
 
 go 1.21
 
-require github.com/ethereum/go-ethereum v1.13.14
+require (
+	github.com/dapp-learning/ethclient/util v0.0.0
+	github.com/ethereum/go-ethereum v1.13.14
+)
+
+replace github.com/dapp-learning/ethclient/util => ../util
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect

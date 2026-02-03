@@ -2,21 +2,20 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
+	"crypto/ecdsa"
 	"fmt"
 	"log"
 	"math/big"
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/dapp-learning/ethclient/util"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// Store 合约的字节码（编译后生成）
-const contractBytecode = "608060405234801561000f575f80fd5b5060405161087538038061087583398181016040528101906100319190610193565b805f908161003f91906103e7565b50506104b6565b5f604051905090565b5f80fd5b5f80fd5b5f80fd5b5f80fd5b5f601f19601f8301169050919050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52604160045260245ffd5b6100a58261005f565b810181811067ffffffffffffffff821117156100c4576100c361006f565b5b80604052505050565b5f6100d6610046565b90506100e2828261009c565b919050565b5f67ffffffffffffffff8211156101015761010061006f565b5b61010a8261005f565b9050602081019050919050565b8281835e5f83830152505050565b5f610137610132846100e7565b6100cd565b9050828152602081018484840111156101535761015261005b565b5b61015e848285610117565b509392505050565b5f82601f83011261017a57610179610057565b5b815161018a848260208601610125565b91505092915050565b5f602082840312156101a8576101a761004f565b5b5f82015167ffffffffffffffff8111156101c5576101c4610053565b5b6101d184828501610166565b91505092915050565b5f81519050919050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52602260045260245ffd5b5f600282049050600182168061022857607f821691505b60208210810361023b5761023a6101e4565b5b50919050565b5f819050815f5260205f209050919050565b5f6020601f8301049050919050565b5f82821b905092915050565b5f6008830261029d7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff82610262565b6102a78683610262565b95508019841693508086168417925050509392505050565b5f819050919050565b5f819050919050565b5f6102eb6102e66102e1846102bf565b6102c8565b6102bf565b9050919050565b5f819050919050565b610304836102d1565b610318610310826102f2565b84845461026e565b825550505050565b5f90565b61032c610320565b6103378184846102fb565b505050565b5b8181101561035a5761034f5f82610324565b60018101905061033d565b5050565b601f82111561039f5761037081610241565b61037984610253565b81016020851015610388578190505b61039c61039485610253565b83018261033c565b50505b505050565b5f82821c905092915050565b5f6103bf5f19846008026103a4565b1980831691505092915050565b5f6103d783836103b0565b9150826002028217905092915050565b6103f0826101da565b67ffffffffffffffff8111156104095761040861006f565b5b6104138254610211565b61041e82828561035e565b5f60209050601f83116001811461044f575f841561043d578287015190505b61044785826103cc565b8655506104ae565b601f19841661045d86610241565b5f5b828110156104845784890151825560018201915060208501945060208101905061045f565b868310156104a1578489015161049d601f8916826103b0565b8355505b6001600288020188555050505b505050505050565b6103b2806104c35f395ff3fe608060405234801561000f575f80fd5b506004361061003f575f3560e01c806348f343f31461004357806354fd4d5014610073578063f56256c714610091575b5f80fd5b61005d600480360381019061005891906101d7565b6100ad565b60405161006a9190610211565b60405180910390f35b61007b6100c2565b604051610088919061029a565b60405180910390f35b6100ab60048036038101906100a691906102ba565b61014d565b005b6001602052805f5260405f205f915090505481565b5f80546100ce90610325565b80601f01602080910402602001604051908101604052809291908181526020018280546100fa90610325565b80156101455780601f1061011c57610100808354040283529160200191610145565b820191905f5260205f20905b81548152906001019060200180831161012857829003601f168201915b505050505081565b8060015f8481526020019081526020015f20819055507fe79e73da417710ae99aa2088575580a60415d359acfad9cdd3382d59c80281d48282604051610194929190610355565b60405180910390a15050565b5f80fd5b5f819050919050565b6101b6816101a4565b81146101c0575f80fd5b50565b5f813590506101d1816101ad565b92915050565b5f602082840312156101ec576101eb6101a0565b5b5f6101f9848285016101c3565b91505092915050565b61020b816101a4565b82525050565b5f6020820190506102245f830184610202565b92915050565b5f81519050919050565b5f82825260208201905092915050565b8281835e5f83830152505050565b5f601f19601f8301169050919050565b5f61026c8261022a565b6102768185610234565b9350610286818560208601610244565b61028f81610252565b840191505092915050565b5f6020820190508181035f8301526102b28184610262565b905092915050565b5f80604083850312156102d0576102cf6101a0565b5b5f6102dd858286016101c3565b92505060206102ee858286016101c3565b9150509250929050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52602260045260245ffd5b5f600282049050600182168061033c57607f821691505b60208210810361034f5761034e6102f8565b5b50919050565b5f6040820190506103685f830185610202565b6103756020830184610202565b939250505056fea26469706673582212205aae308f77654b000c9d222eff2d9f2bd2ac18d990b10774842e4309d4e3e15664736f6c634300081a0033"
+// 纯 ethclient 部署：用 util.ReadBin / ReadABI 从 contract 目录读 .bin 和 .abi，不依赖 store.go。
 
 func main() {
 	privateKeyHex := os.Getenv("PRIVATE_KEY")
@@ -32,42 +31,109 @@ func main() {
 	// 练习：连接到以太坊节点
 	// var client *ethclient.Client
 	// client, err = ???
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+	fmt.Println("已连接 RPC:", rpcURL)
 
 	// 练习：加载私钥并获取发送者地址
-	// privateKey, err := crypto.HexToECDSA(privateKeyHex)
-	// publicKey := privateKey.Public()
-	// publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	// fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		log.Fatal(err)
+	}
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("error casting public key to ECDSA")
+	}
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	fmt.Printf("发送者地址: %s\n", fromAddress.Hex())
 
 	// 练习：获取 nonce
 	// nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("当前 Nonce: %d\n", nonce)
 
 	// 练习：获取 Gas 价格
 	// gasPrice, err := client.SuggestGasPrice(context.Background())
+	minGasPrice := new(big.Int).Mul(big.NewInt(10), big.NewInt(1e9)) // 10 gwei
+	gasPrice, err := util.SuggestGasPrice(context.Background(), client, minGasPrice)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("GasPrice: %s wei\n", gasPrice.String())
 
-	// 练习：解码合约字节码
-	// data, err := hex.DecodeString(contractBytecode)
+	// 从 contract 目录读取 .bin / .abi（支持从 2.10-deploy-contract 或 exercises 运行）
+	binPath, abiPath := "contract/Store_sol_Store.bin", "contract/Store_sol_Store.abi"
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		binPath, abiPath = "../contract/Store_sol_Store.bin", "../contract/Store_sol_Store.abi"
+	}
+	bytecode, err := util.ReadBin(binPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	parsedABI, err := util.ReadABI(abiPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	constructorArgs, err := parsedABI.Constructor.Inputs.Pack("1.0")
+	if err != nil {
+		log.Fatal("打包构造参数失败:", err)
+	}
+	data := append(bytecode, constructorArgs...)
 
 	// 练习：创建合约部署交易
 	// 提示：使用 types.NewContractCreation，to 地址为 nil
 	// tx := types.NewContractCreation(nonce, big.NewInt(0), 3000000, gasPrice, data)
+	gasLimit := uint64(3000000)
+	tx := types.NewContractCreation(nonce, big.NewInt(0), gasLimit, gasPrice, data)
+	fmt.Printf("GasLimit: %d\n", gasLimit)
+	fmt.Printf("字节码长度: %d bytes\n", len(data))
 
 	// 练习：获取链 ID 并签名交易
 	// chainID, _ := client.NetworkID(context.Background())
 	// signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	chainID, err := client.NetworkID(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("链 ID: %s，交易已签名\n", chainID.String())
 
 	// 练习：发送交易
 	// err = client.SendTransaction(context.Background(), signedTx)
-
-	fmt.Printf("交易已发送: %s\n", "signedTx.Hash().Hex()")
+	err = client.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	txHash := signedTx.Hash()
+	fmt.Printf("交易已发送，交易哈希: %s\n", txHash.Hex())
 
 	// 练习：等待交易确认并获取合约地址
 	// receipt, err := waitForReceipt(client, signedTx.Hash())
-	// fmt.Printf("合约地址: %s\n", receipt.ContractAddress.Hex())
-}
+	fmt.Printf("等待交易回执: %s\n", txHash.Hex())
+	receipt, err := util.WaitForReceipt(context.Background(), client, txHash, 2*time.Second, 5*time.Minute)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-func waitForReceipt(client *ethclient.Client, txHash common.Hash) (*types.Receipt, error) {
-	// TODO: 实现等待逻辑
-	// 提示：轮询 client.TransactionReceipt，如果 NotFound 则等待 1 秒后重试
-	return nil, nil
+	fmt.Println("已获取交易回执")
+	fmt.Printf("状态 Status: %d (1=成功,0=失败)\n", receipt.Status)
+	fmt.Printf("区块号 BlockNumber: %s\n", receipt.BlockNumber.String())
+	fmt.Printf("GasUsed: %d\n", receipt.GasUsed)
+	fmt.Printf("合约地址 ContractAddress: %s\n", receipt.ContractAddress.Hex())
+	fmt.Printf("交易索引 TxIndex: %d\n", receipt.TransactionIndex)
+	if receipt.Status == 1 {
+		fmt.Println("合约部署成功")
+	} else {
+		fmt.Println("合约部署失败（可到 Etherscan 查看该交易的错误详情）")
+	}
 }
