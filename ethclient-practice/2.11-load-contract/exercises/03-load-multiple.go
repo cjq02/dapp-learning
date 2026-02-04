@@ -6,9 +6,10 @@ import (
 	"log"
 	"os"
 
+	store "ethclient/load-contract/contract"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/dapp-learning/ethclient/load-contract/store"
 )
 
 func main() {

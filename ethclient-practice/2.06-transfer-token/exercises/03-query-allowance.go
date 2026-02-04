@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/dapp-learning/ethclient/util"
+	"ethclient/util"
 )
 
 func main() {
@@ -57,7 +57,7 @@ func main() {
 	}
 
 	// 连接到以太坊节点
-	client, err := ethclient.Dial("https://sepolia.infura.io/v3/"+apiKey)
+	client, err := ethclient.Dial("https://sepolia.infura.io/v3/" + apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}

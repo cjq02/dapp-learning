@@ -1,28 +1,26 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
 
+	store "ethclient/load-contract/contract"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/dapp-learning/ethclient/load-contract/store"
 )
 
 func main() {
-	// 从环境变量获取合约地址
+	// 从环境变量读取配置（与 2.10 一致：必填项缺失则直接报错）
 	contractAddressStr := os.Getenv("CONTRACT_ADDRESS")
 	if contractAddressStr == "" {
-		// 默认测试地址
-		contractAddressStr = "0x8D4141ec2b522dE5Cf42705C3010541B4B3EC24e"
+		log.Fatal("错误: 请设置环境变量 CONTRACT_ADDRESS（可填 2.10 部署得到的合约地址）")
 	}
 
-	// 从环境变量获取 RPC URL
 	rpcURL := os.Getenv("SEPOLIA_RPC_URL")
 	if rpcURL == "" {
-		rpcURL = "https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"
+		log.Fatal("错误: 请设置环境变量 SEPOLIA_RPC_URL")
 	}
 
 	// 练习 1：连接到以太坊节点

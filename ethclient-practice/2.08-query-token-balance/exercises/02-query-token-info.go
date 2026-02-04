@@ -5,8 +5,9 @@ import (
 	"log"
 	"os"
 
+	"ethclient/util"
+
 	"github.com/dapp-learning/ethclient/query-token-balance/erc20"
-	"github.com/dapp-learning/ethclient/util"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )

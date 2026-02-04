@@ -5,11 +5,11 @@ go 1.24.0
 toolchain go1.24.12
 
 require (
-	github.com/dapp-learning/ethclient/util v0.0.0
+	ethclient/util v0.0.0
 	github.com/ethereum/go-ethereum v1.16.8
 )
 
-replace github.com/dapp-learning/ethclient/util => ../util
+replace ethclient/util => ../util
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
