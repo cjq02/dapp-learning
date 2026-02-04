@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"time"
 
 	store "github.com/dapp-learning/ethclient/deploy-contract/contract"
 	"github.com/dapp-learning/ethclient/util"
@@ -90,22 +91,24 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("合约部署成功！")
 	fmt.Printf("合约地址: %s\n", contractAddr.Hex())
 	fmt.Printf("交易哈希: %s\n", tx.Hash().Hex())
 	fmt.Printf("实例: %v\n", instance)
 
-	// 练习：等待交易确认
-	// 提示：使用 client.TransactionReceipt 轮询查询
-	// receipt, err := waitForReceipt(client, tx.Hash())
-	// if receipt.Status == 1 {
-	//     fmt.Println("合约已部署到链上")
-	// }
-	receipt, err := client.TransactionReceipt(context.Background(), tx.Hash())
+	// 练习：等待交易确认（与 02-deploy-raw 一致，用 util.WaitForReceipt 轮询）
+	fmt.Printf("等待交易回执: %s\n", tx.Hash().Hex())
+	receipt, err := util.WaitForReceipt(context.Background(), client, tx.Hash(), 2*time.Second, 5*time.Minute)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println("已获取交易回执")
+	fmt.Printf("状态 Status: %d (1=成功,0=失败)\n", receipt.Status)
+	fmt.Printf("区块号 BlockNumber: %s\n", receipt.BlockNumber.String())
+	fmt.Printf("GasUsed: %d\n", receipt.GasUsed)
+	fmt.Printf("合约地址 ContractAddress: %s\n", receipt.ContractAddress.Hex())
 	if receipt.Status == 1 {
 		fmt.Println("合约已部署到链上")
+	} else {
+		fmt.Println("合约部署失败（可到 Etherscan 查看该交易的错误详情）")
 	}
 }
