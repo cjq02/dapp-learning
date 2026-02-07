@@ -7,6 +7,8 @@ require (
 	github.com/ethereum/go-ethereum v1.13.14
 )
 
+replace ethclient/util => ../util
+
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
