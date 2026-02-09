@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/dapp-learning/ethclient-practice/util"
 
@@ -38,15 +39,20 @@ func main() {
 	//       设置 toBlock = 最新，fromBlock = 最新 - 100（用 new(big.Int).Sub）
 	// -------------------------------------------------------------------------
 	var fromBlock, toBlock *big.Int
-	var header *types.Header
+	var toHeader *types.Header
+	var fromHeader *types.Header
 	var query ethereum.FilterQuery
 	// TODO: 请在此实现 fromBlock、toBlock 的赋值
-	header, err = client.HeaderByNumber(context.Background(), big.NewInt(10204764))
+	fromHeader, err = client.HeaderByNumber(context.Background(), big.NewInt(10202504))
 	if err != nil {
 		log.Fatal(err)
 	}
-	toBlock = header.Number
-	fromBlock = new(big.Int).Sub(header.Number, big.NewInt(100))
+	toHeader, err = client.HeaderByNumber(context.Background(), big.NewInt(10222708))
+	if err != nil {
+		log.Fatal(err)
+	}
+	toBlock = toHeader.Number
+	fromBlock = fromHeader.Number
 	query = ethereum.FilterQuery{
 		FromBlock: fromBlock,
 		ToBlock:   toBlock,
@@ -78,24 +84,49 @@ func main() {
 	}
 
 	for _, vLog := range logs {
-		// TODO: 在此解码 vLog 为 ItemSet 事件并打印（Key、Value、Topics 等）
 		event := struct {
 			Key   [32]byte
 			Value [32]byte
 		}{}
+		// Data 里只有非 indexed 参数，即 value
 		err = parsedABI.UnpackIntoInterface(&event, "ItemSet", vLog.Data)
 		if err != nil {
 			log.Printf("Unpack err: %v", err)
 			continue
 		}
+		// indexed 的 key 在 topics[1]，32 字节即 bytes32
+		if len(vLog.Topics) > 1 {
+			copy(event.Key[:], vLog.Topics[1].Bytes())
+		}
 		fmt.Println("BlockHash:", vLog.BlockHash.Hex())
 		fmt.Println("BlockNumber:", vLog.BlockNumber)
 		fmt.Println("TxHash:", vLog.TxHash.Hex())
-		fmt.Println("Key(hex):", common.Bytes2Hex(event.Key[:]))
-		fmt.Println("Value(hex):", common.Bytes2Hex(event.Value[:]))
-		for i, t := range vLog.Topics {
-			fmt.Printf("Topic[%d]=%s\n", i, t.Hex())
+
+		var block *types.Block
+		block, err = client.BlockByNumber(context.Background(), big.NewInt(int64(vLog.BlockNumber)))
+		if err != nil {
+			log.Fatal(err)
 		}
+		fmt.Println("BlockTime:", block.Time(), "->", time.Unix(int64(block.Time()), 0).Format("2006-01-02 15:04:05"))
+		// bytes32 若存的是 ASCII，去掉尾部 0 可读
+		// keyStr := strings.TrimRight(string(event.Key[:]), "\x00")
+		keyStr := string(event.Key[:])
+		// valueStr := strings.TrimRight(string(event.Value[:]), "\x00")
+		valueStr := string(event.Value[:])
+		fmt.Println("Key(hex):", common.Bytes2Hex(event.Key[:]), "->", keyStr)
+		fmt.Println("Value(hex):", common.Bytes2Hex(event.Value[:]), "->", valueStr)
+		for i, t := range vLog.Topics {
+			desc := ""
+			switch i {
+			case 0:
+				desc = " (事件签名哈希 ItemSet(bytes32,bytes32))"
+			case 1:
+				// desc = " (indexed key) -> " + strings.TrimRight(string(t.Bytes()), "\x00")
+				desc = " (indexed key) -> " + string(t.Bytes())
+			}
+			fmt.Printf("Topic[%d]=%s%s\n", i, t.Hex(), desc)
+		}
+		fmt.Println("Data:", common.Bytes2Hex(vLog.Data), "->", string(vLog.Data))
 		fmt.Println("---")
 	}
 	fmt.Printf("共 %d 条日志\n", len(logs))
