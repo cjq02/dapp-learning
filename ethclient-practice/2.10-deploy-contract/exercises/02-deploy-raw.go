@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"ethclient/util"
+	"github.com/dapp-learning/ethclient-practice/util"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"

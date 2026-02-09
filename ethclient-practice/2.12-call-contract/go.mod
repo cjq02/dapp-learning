@@ -3,11 +3,11 @@ module github.com/dapp-learning/ethclient/call-contract
 go 1.21
 
 require (
-	ethclient/util v0.0.0
+	github.com/dapp-learning/ethclient-practice/util v0.0.0
 	github.com/ethereum/go-ethereum v1.13.14
 )
 
-replace ethclient/util => ../util
+replace github.com/dapp-learning/ethclient-practice/util => ../util
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect

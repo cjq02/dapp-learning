@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"ethclient/util"
+	"github.com/dapp-learning/ethclient-practice/util"
 )
 
 func main() {

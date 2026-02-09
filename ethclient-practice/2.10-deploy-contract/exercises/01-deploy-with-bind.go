@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"ethclient/util"
+	"github.com/dapp-learning/ethclient-practice/util"
 
 	store "github.com/dapp-learning/ethclient/deploy-contract/contract"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"

@@ -59,7 +59,68 @@
 | `topics[2]` | 第 2 个 `indexed` 参数的值（若有） |
 | `topics[3]` | 第 3 个 `indexed` 参数的值（若有） |
 
+**计算事件签名时用的是什么字符串？**
+
+对 `topics[0]` 做哈希时，用的是事件的**规范原型**字符串，规则与函数选择器一致：
+
+- **格式**：`EventName(type1,type2,...)`，括号里只写**参数类型**，类型之间用英文逗号分隔，**无空格**。
+- **不包含**：参数名、`indexed` 关键字都不写。
+- **类型用规范名**：`uint` → `uint256`，`int` → `int256`，`byte` → `bytes1` 等（与 [ABI 规范](https://docs.soliditylang.org/en/latest/abi-spec.html) 一致）。
+
+例如 Solidity 里定义为 `event ItemSet(bytes32 indexed key, bytes32 value)`，用来算哈希的字符串是 **`ItemSet(bytes32,bytes32)`**，而不是带 `key`/`value` 或 `indexed` 的写法。再如 `event Transfer(address indexed from, address indexed to, uint256 value)` 对应 **`Transfer(address,address,uint256)`**。
+
+**为什么是这样的格式？**
+
+- **和函数选择器一致**：以太坊 ABI 里，函数用 `keccak256("函数名(类型列表)")` 的前 4 字节做 selector；事件用同一套“规范原型”的哈希做 `topics[0]`，这样合约的“对外形状”用同一规则描述，工具链也统一。
+- **只认“形状”，不认名字**：参数名、`indexed` 只影响可读性和存储方式，不改变“哪个事件、参数类型是什么”。签名只描述“事件名 + 参数类型列表”，这样同一事件在不同合约、不同命名下仍得到相同 topic，便于过滤和跨合约识别。
+- **规范类型名保证唯一、可互操作**：用规范名（如 `uint256`）而不是别名（如 `uint`），保证所有语言、编译器算出的字符串一致，哈希才能对齐；参数名各语言可能不同，不参与签名更稳妥。
+
 **注意：** 被 `indexed` 修饰的字段不会出现在 `Data` 中，仅出现在 Topics 里。
+
+以上是**普通事件**的规则。声明为 `anonymous` 的**匿名事件**不把事件签名写入日志，布局不同，见下节。
+
+### 匿名事件与 Topics
+
+Solidity 中可用 `anonymous` 修饰事件：
+
+```solidity
+event ItemSet(bytes32 indexed key, bytes32 value) anonymous;
+```
+
+匿名事件在日志中的行为：
+
+- **不**把事件签名的哈希写入任何 topic，相当于省掉一个 topic。
+- `topics[0]` **不是**事件签名，而是第 1 个 `indexed` 参数。
+- 因此最多可以有 **4 个** `indexed` 参数（4 个 topic 全用于参数）；普通事件只有 3 个（1 个给签名 + 3 个给参数）。
+
+| 类型       | topics[0]            | topics[1..3]              | indexed 数量 |
+|------------|----------------------|---------------------------|--------------|
+| 普通事件   | 事件签名哈希（固定） | 第 1～3 个 indexed 参数   | 最多 3 个    |
+| 匿名事件   | 第 1 个 indexed 参数 | 第 2～4 个 indexed 参数   | 最多 4 个    |
+
+**匿名事件的特点：**
+
+- **优点**：少 32 字节（不存签名）、多一个 indexed 槽位，适合对 gas 敏感或需要 4 个 indexed 的场景。
+- **缺点**：链上无法通过“事件签名”区分事件类型，只能结合合约地址和 ABI 解析，按事件类型过滤会麻烦一些。
+
+### Data 说明
+
+日志中的 **Data** 字段存放的是事件里**未**用 `indexed` 修饰的参数，按 ABI 编码规则顺序拼接成一段字节（与合约调用的参数编码方式一致）。
+
+- **谁进 Data**：只有**非 indexed** 参数会进入 Data；所有 `indexed` 参数都在 Topics 里，不会出现在 Data 中。
+- **编码方式**：按事件参数声明顺序，对非 indexed 参数做 ABI 编码（与 [Contract ABI](https://docs.soliditylang.org/en/latest/abi-spec.html) 一致）。例如多个 `uint256`、`bytes32`、动态类型等，都按标准规则编码。
+- **空 Data**：若事件没有任何非 indexed 参数，Data 即为 `0x`（空）。
+- **解析**：链上只存原始字节，解析时需要合约 ABI 才能把 Data 解码成具体类型和字段；`go-ethereum` 的 `abi.UnpackLog` 等即根据事件 ABI 解码 Data（以及从 Topics 解析 indexed 参数）。
+
+**Data 里通常放哪些数据？**
+
+- **不需要按条件过滤、只用来“读”的值**：例如 key-value 里的 value、金额、数量、状态码等。这些用 Topics 存会占掉宝贵的 indexed 槽位，且过滤时很少按 value 查，放在 Data 即可。
+- **变长或复杂类型**：`string`、`bytes`、`bytes32` 以外的字节、数组、结构体等。Topics 每个只能是 32 字节，变长类型只能放在 Data 里做 ABI 编码。
+- **内容较多、仅作记录的信息**：描述、备注、URL、签名等，只在对某条日志做解析时需要，不需要被 `eth_getLogs` 按 topic 过滤。
+
+反之，**需要按条件筛选**的（例如“某地址发的”“某 ID 的”“某 key 的”）通常放在 **indexed** 里进 Topics，这样 RPC 可按 `topics[1..3]` 高效过滤。
+
+以 `event ItemSet(bytes32 indexed key, bytes32 value)` 为例：`key` 在 `topics[1]` 便于按 key 查；`value` 在 Data 里，Data 即为单个 `bytes32` 的 ABI 编码（32 字节）。
 
 ### Store 合约事件
 
@@ -71,6 +132,21 @@ event ItemSet(bytes32 indexed key, bytes32 value);
 
 - `key`：indexed，出现在 `topics[1]`
 - `value`：非 indexed，出现在 `Data` 中
+
+### 怎么判断一条 log 是哪个合约、哪个事件？
+
+- **哪个合约**：看 **`log.Address`**（在 `types.Log` 里即 `vLog.Address`）。每条日志都带发出它的合约地址，直接比较即可，例如 `vLog.Address == contractAddr`。
+- **哪个事件（普通事件）**：看 **`log.Topics[0]`**。普通事件会把事件签名的哈希放在第一个 topic，即 `topics[0] == keccak256("EventName(type1,type2,...)")`。在 Go 里可预先算好再比较：
+  ```go
+  eventSig := crypto.Keccak256Hash([]byte("ItemSet(bytes32,bytes32)"))
+  if len(vLog.Topics) > 0 && vLog.Topics[0] == eventSig {
+      // 是 ItemSet 事件
+  }
+  ```
+  签名字符串要和 Solidity 定义一致（类型用规范名，如 `uint256` 不用 `uint`）。
+- **匿名事件**：没有事件签名 topic，无法单从日志区分是哪种事件。只能结合 **合约地址**（先确定是哪个合约）、以及业务上该合约可能发出的匿名事件来试解码，或用 `abi.ParseTopics` 按某事件的 indexed 参数去匹配。
+
+**典型写法**：先按 `vLog.Address` 筛出目标合约的 log，再按 `vLog.Topics[0]` 判断事件类型（非匿名时），最后用对应 ABI 解码 Data/Topics。
 
 ---
 
@@ -88,6 +164,13 @@ query := ethereum.FilterQuery{
     Topics:    [][]common.Hash{},    // 可选，按 topic 过滤
 }
 ```
+
+**区块范围默认值：**
+
+- **不设置 `FromBlock`**：从创世区块（0）开始查。
+- **不设置 `ToBlock`**：查到**当前最新区块**（执行 `FilterLogs` 时节点认为的 latest 区块）。
+
+因此若不设 `ToBlock`，每次查询的“终点”是当时的最新块，适合“从某块到现在”的开放式区间。范围两端都是**含边界**的（inclusive）。
 
 ### FilterLogs
 
@@ -111,6 +194,17 @@ event := struct {
 }{}
 err = contractAbi.UnpackIntoInterface(&event, "ItemSet", vLog.Data)
 ```
+
+**`UnpackIntoInterface(&event, "ItemSet", vLog.Data)` 是怎么工作的？**
+
+1. **三个参数**：目标结构体指针 `&event`、事件名 `"ItemSet"`、原始字节 `vLog.Data`（仅包含日志的 Data 字段，不包含 Topics）。
+2. **按名字找事件**：在 `contractAbi` 里根据 `"ItemSet"` 查到该事件的 ABI 定义（参数列表、谁 indexed、谁非 indexed）。
+3. **只解 Data 段**：第三个参数只传了 `vLog.Data`，所以库只会用这段字节做 ABI 解码。事件里只有**非 indexed** 参数会编码在 Data 里，因此内部等价于用该事件的「非 indexed 参数」类型列表去 `Unpack(data)`，再按**参数名**或顺序填到 `event` 的对应字段里。
+4. **结果**：  
+   - **非 indexed 参数**（如 `value`）会从 `vLog.Data` 解出并填到 `event.Value`。  
+   - **indexed 参数**（如 `key`）在链上存在 `vLog.Topics` 里，不在 Data 里，这次调用**不会**填 `event.Key`；若需要 `key`，要自己从 `vLog.Topics[1]` 取，或用 `abi.ParseTopics(event.Inputs, vLog.Topics)` 等按 ABI 解析 Topics。
+
+因此：**只传 `vLog.Data` 时，UnpackIntoInterface 只负责把 Data 按 ABI 解成结构体里“对应非 indexed 参数”的字段；indexed 参数需从 Topics 另算。**
 
 ---
 
@@ -182,6 +276,8 @@ query.Topics = [][]common.Hash{{eventSig}}
 ## 练习作业
 
 练习使用**已部署的 Store 合约**。若尚未部署，请先完成 [2.10 部署合约](../2.10-deploy-contract/)，并准备好合约地址与 RPC URL。
+
+**环境变量（与 [2.12 调用合约](../2.12-call-contract/) 一致）：** `CONTRACT_ADDRESS`、`SEPOLIA_RPC_URL`；作业 2 需 `SEPOLIA_WS_URL`（WebSocket）；作业 3 需 `TX_HASH`（一笔 setItem 交易哈希）。
 
 ### 作业 1：查询历史事件（基础）
 

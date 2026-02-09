@@ -17,21 +17,21 @@ import (
 const StoreABI = `[{"inputs":[{"internalType":"string","name":"_version","type":"string"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"key","type":"bytes32"},{"indexed":false,"internalType":"bytes32","name":"value","type":"bytes32"}],"name":"ItemSet","type":"event"},{"inputs":[{"internalType":"bytes32","name":"key","type":"bytes32"}],"name":"getItem","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"name":"items","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"key","type":"bytes32"},{"internalType":"bytes32","name":"value","type":"bytes32"}],"name":"setItem","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"version","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]`
 
 func main() {
+	// 从环境变量读取配置（与 2.12 一致）
+	contractAddressStr := os.Getenv("CONTRACT_ADDRESS")
+	if contractAddressStr == "" {
+		log.Fatal("错误: 请设置环境变量 CONTRACT_ADDRESS（可填 2.10 部署得到的合约地址）")
+	}
 	rpcURL := os.Getenv("SEPOLIA_RPC_URL")
 	if rpcURL == "" {
-		rpcURL = "https://sepolia.infura.io/v3/YOUR_API_KEY"
+		log.Fatal("错误: 请设置环境变量 SEPOLIA_RPC_URL")
 	}
 	client, err := ethclient.Dial(rpcURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer client.Close()
-
-	contractAddrHex := os.Getenv("STORE_CONTRACT_ADDRESS")
-	if contractAddrHex == "" {
-		log.Fatal("请设置环境变量 STORE_CONTRACT_ADDRESS")
-	}
-	contractAddress := common.HexToAddress(contractAddrHex)
+	contractAddress := common.HexToAddress(contractAddressStr)
 
 	header, err := client.HeaderByNumber(context.Background(), nil)
 	if err != nil {

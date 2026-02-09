@@ -1,4 +1,4 @@
-module ethclient/util
+module github.com/dapp-learning/ethclient-practice/util
 
 go 1.21
 

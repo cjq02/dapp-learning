@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"ethclient/util"
+	"github.com/dapp-learning/ethclient-practice/util"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
