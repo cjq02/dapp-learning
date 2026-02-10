@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
-	"strings"
+	"time"
 
+	"github.com/dapp-learning/ethclient-practice/util"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
-
-const StoreABI = `[{"inputs":[{"internalType":"string","name":"_version","type":"string"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"key","type":"bytes32"},{"indexed":false,"internalType":"bytes32","name":"value","type":"bytes32"}],"name":"ItemSet","type":"event"},{"inputs":[{"internalType":"bytes32","name":"key","type":"bytes32"}],"name":"getItem","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"name":"items","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"key","type":"bytes32"},{"internalType":"bytes32","name":"value","type":"bytes32"}],"name":"setItem","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"version","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]`
 
 func main() {
 	// 从环境变量读取配置（与 2.12 一致；订阅需 WebSocket）
@@ -45,14 +44,21 @@ func main() {
 	// 练习 2：创建 types.Log 的 channel，调用 SubscribeFilterLogs，并 defer Unsubscribe
 	// TODO: 请在此补全：logsCh := make(chan types.Log)；sub, err := client.SubscribeFilterLogs(ctx, query, logsCh)；defer sub.Unsubscribe()
 	// -------------------------------------------------------------------------
-	logsCh := make(chan types.Log)
+	// logsCh := make(chan types.Log)
+	// sub, err := client.SubscribeFilterLogs(context.Background(), query, logsCh)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer sub.Unsubscribe()
+	var logsCh chan types.Log
+	logsCh = make(chan types.Log)
 	sub, err := client.SubscribeFilterLogs(context.Background(), query, logsCh)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer sub.Unsubscribe()
 
-	contractAbi, err := abi.JSON(strings.NewReader(StoreABI))
+	contractAbi, err := util.ReadABI("../contract/Store_sol_Store.abi")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +76,30 @@ func main() {
 			log.Fatal(err)
 		case vLog := <-logsCh:
 			// TODO: 在此解码 vLog 为 ItemSet 事件并打印
-			_, _ = vLog, contractAbi
+			event := struct {
+				Key   [32]byte
+				Value [32]byte
+			}{}
+			err := contractAbi.UnpackIntoInterface(&event, "ItemSet", vLog.Data)
+			if err != nil {
+				log.Printf("Unpack err: %v", err)
+				continue
+			}
+			if len(vLog.Topics) > 1 {
+				copy(event.Key[:], vLog.Topics[1].Bytes())
+			}
+			fmt.Println("BlockNumber:", vLog.BlockNumber, "TxHash:", vLog.TxHash.Hex())
+			block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(vLog.BlockNumber)))
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println("BlockTime:", block.Time(), "->", time.Unix(int64(block.Time()), 0).Format("2006-01-02 15:04:05"))
+
+			keyStr := string(event.Key[:])
+			valueStr := string(event.Value[:])
+			fmt.Println("key(hex):", common.Bytes2Hex(event.Key[:]), "->", keyStr)
+			fmt.Println("value(hex):", common.Bytes2Hex(event.Value[:]), "->", valueStr)
+
 		}
 	}
 }

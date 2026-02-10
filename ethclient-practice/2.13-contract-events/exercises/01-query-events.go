@@ -47,7 +47,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	toHeader, err = client.HeaderByNumber(context.Background(), big.NewInt(10222708))
+	toHeader, err = client.HeaderByNumber(context.Background(), big.NewInt(10222940))
 	if err != nil {
 		log.Fatal(err)
 	}

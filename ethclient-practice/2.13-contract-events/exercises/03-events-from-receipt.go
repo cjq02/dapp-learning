@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
-	"strings"
+	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/dapp-learning/ethclient-practice/util"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/core/types"
 )
-
-const StoreABI = `[{"inputs":[{"internalType":"string","name":"_version","type":"string"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"key","type":"bytes32"},{"indexed":false,"internalType":"bytes32","name":"value","type":"bytes32"}],"name":"ItemSet","type":"event"},{"inputs":[{"internalType":"bytes32","name":"key","type":"bytes32"}],"name":"getItem","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"name":"items","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"key","type":"bytes32"},{"internalType":"bytes32","name":"value","type":"bytes32"}],"name":"setItem","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"version","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]`
 
 func main() {
 	// 从环境变量读取配置（与 2.12 一致）
@@ -29,8 +28,8 @@ func main() {
 	defer client.Close()
 
 	// -------------------------------------------------------------------------
-	// 练习 1：从环境变量读取一笔 setItem 交易哈希，并获取该交易的收据
-	// 提示：TX_HASH 环境变量；client.TransactionReceipt(context.Background(), txHash)
+	// 练习 1：从环境变量读取交易哈希，并获取该交易的收据
+	// TODO: 调用 client.TransactionReceipt(context.Background(), txHash)，将结果赋给 receipt 和 receiptErr
 	// -------------------------------------------------------------------------
 	txHashHex := os.Getenv("TX_HASH")
 	if txHashHex == "" {
@@ -40,29 +39,58 @@ func main() {
 
 	var receipt *types.Receipt
 	var receiptErr error
-	// TODO: 请在此调用 client.TransactionReceipt(context.Background(), txHash)，将结果赋给 receipt 和 receiptErr
-	_, _ = context.Background(), txHash
+	// TODO: receipt, receiptErr = client.TransactionReceipt(context.Background(), txHash)
+	receipt, receiptErr = client.TransactionReceipt(context.Background(), txHash)
 	if receiptErr != nil {
 		log.Fatal(receiptErr)
 	}
 
-	// ItemSet 事件签名，用于匹配 log.Topics[0]
+	// ItemSet 事件签名：keccak256("ItemSet(bytes32,bytes32)")，用于判断 log 是否为 ItemSet
 	eventSig := crypto.Keccak256Hash([]byte("ItemSet(bytes32,bytes32)"))
 
-	contractAbi, err := abi.JSON(strings.NewReader(StoreABI))
+	contractAbi, err := util.ReadABI("../contract/Store_sol_Store.abi")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// -------------------------------------------------------------------------
-	// 练习 2：遍历 receipt.Logs，若 log.Topics[0] == eventSig 则认为是 ItemSet 事件
-	// 使用 contractAbi.UnpackIntoInterface(&event, "ItemSet", vLog.Data) 解码并打印 Key、Value 等
+	// 练习 2：遍历 receipt.Logs，识别 ItemSet 事件并解码打印
+	// TODO: for range receipt.Logs {
+	//   1. 若 len(vLog.Topics)==0 或 vLog.Topics[0]!=eventSig，则 continue（不是 ItemSet）
+	//   2. 定义 event 结构体 struct{ Key, Value [32]byte }
+	//   3. contractAbi.UnpackIntoInterface(&event, "ItemSet", vLog.Data) 解出 value（Data 里只有非 indexed）
+	//   4. 从 vLog.Topics[1] 拷贝到 event.Key（indexed 的 key 在 topics[1]）
+	//   5. 打印 Key、Value、BlockNumber、TxHash 等
+	// }
 	// -------------------------------------------------------------------------
 	for i, vLog := range receipt.Logs {
-		// TODO: 在此判断是否为 ItemSet（len(vLog.Topics)>0 且 vLog.Topics[0]==eventSig），若是则解码并打印
+		// TODO: 在此实现上述步骤
 		_, _ = i, vLog
-		_ = eventSig
-		_ = contractAbi
+		if len(vLog.Topics) == 0 || vLog.Topics[0] != eventSig {
+			continue
+		}
+		event := struct {
+			Key   [32]byte
+			Value [32]byte
+		}{}
+		err := contractAbi.UnpackIntoInterface(&event, "ItemSet", vLog.Data)
+		if err != nil {
+			log.Printf("log[%d] Unpack err: %v", i, err)
+			continue
+		}
+		if len(vLog.Topics) > 1 {
+			copy(event.Key[:], vLog.Topics[1].Bytes())
+		}
+		fmt.Println("BlockNumber:", vLog.BlockNumber, "TxHash:", vLog.TxHash.Hex())
+		block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(vLog.BlockNumber)))
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("BlockTime:", block.Time(), "->", time.Unix(int64(block.Time()), 0).Format("2006-01-02 15:04:05"))
+		keyStr := string(event.Key[:])
+		valueStr := string(event.Value[:])
+		fmt.Println("key(hex):", common.Bytes2Hex(event.Key[:]), "->", keyStr)
+		fmt.Println("value(hex):", common.Bytes2Hex(event.Value[:]), "->", valueStr)
 	}
 	fmt.Println("解析完成")
 }

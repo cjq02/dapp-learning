@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/dapp-learning/ethclient/call-contract/store"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -65,17 +68,26 @@ func main() {
 	}
 	fmt.Printf("合约实例加载成功: %s\n", contractAddress.Hex())
 
-	// 准备数据
+	// 从控制台读取 key 和 value
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("请输入 key: ")
+	keyInput, _ := reader.ReadString('\n')
+	keyInput = strings.TrimSpace(keyInput)
+	fmt.Print("请输入 value: ")
+	valueInput, _ := reader.ReadString('\n')
+	valueInput = strings.TrimSpace(valueInput)
+
 	var key [32]byte
 	var value [32]byte
-	copy(key[:], []byte("exercise_key"))
-	copy(value[:], []byte("exercise_value"))
+	copy(key[:], []byte(keyInput))
+	copy(value[:], []byte(valueInput))
 
 	// 练习 4：调用 SetItem() 函数发送交易
 	// 提示：使用 storeContract.SetItem(auth, key, value)
 	// TODO: tx, err := ???
 	// if err != nil { ... }
 	// fmt.Printf("交易已发送: %s\n", tx.Hash().Hex())
+	start := time.Now()
 	tx, err := storeContract.SetItem(auth, key, value)
 	if err != nil {
 		log.Fatal(err)
@@ -92,6 +104,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	elapsed := time.Since(start)
 	fmt.Printf("交易已确认，区块号: %d\n", receipt.BlockNumber.Uint64())
 	fmt.Printf("Gas 使用: %d\n", receipt.GasUsed)
+	fmt.Printf("发送到确认耗时: %v\n", elapsed)
 }
