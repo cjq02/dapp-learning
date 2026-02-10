@@ -1,12 +1,13 @@
 // 发送交易：连接 Sepolia，构造并发送 ETH 转账，输出交易哈希。
 //
 // 环境变量：SEPOLIA_RPC_URL、PRIVATE_KEY、TO_ADDRESS（必填）
-// 可选：VALUE_ETH  默认 0.001
+// 转账金额在控制台输入，单位 ETH
 //
 // 运行：在 task1 目录下执行 go run ./blockchain-read-write/send-eth
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/ecdsa"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -31,15 +33,15 @@ func getRPCURL() string {
 	return u
 }
 
-func parseEthToWei(ethStr string) *big.Int {
-	eth, _ := strconv.ParseFloat(ethStr, 64)
-	if eth <= 0 {
-		eth = 0.001
+func parseEthToWei(ethStr string) (*big.Int, error) {
+	eth, err := strconv.ParseFloat(strings.TrimSpace(ethStr), 64)
+	if err != nil || eth <= 0 {
+		return nil, fmt.Errorf("无效金额，请输入大于 0 的数字 (ETH)")
 	}
 	oneEth := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 	wei := new(big.Float).Mul(big.NewFloat(eth), new(big.Float).SetInt(oneEth))
 	out, _ := wei.Int(nil)
-	return out
+	return out, nil
 }
 
 func main() {
@@ -74,11 +76,16 @@ func main() {
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
 	toAddress := common.HexToAddress(toAddressHex)
 
-	valueEth := os.Getenv("VALUE_ETH")
-	if valueEth == "" {
-		valueEth = "0.001"
+	fmt.Print("请输入转账金额 (ETH): ")
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		log.Fatal("读取输入失败")
 	}
-	value := parseEthToWei(valueEth)
+	valueEth := strings.TrimSpace(scanner.Text())
+	value, err := parseEthToWei(valueEth)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	ctx := context.Background()
 	nonce, err := client.PendingNonceAt(ctx, fromAddress)
@@ -100,6 +107,7 @@ func main() {
 	if err != nil {
 		log.Fatal("签名失败:", err)
 	}
+	start := time.Now()
 	if err := client.SendTransaction(ctx, signedTx); err != nil {
 		log.Fatal("发送交易失败:", err)
 	}
@@ -114,18 +122,16 @@ func main() {
 	fmt.Println("\n等待交易确认...")
 	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
-	for {
-		receipt, err := client.TransactionReceipt(waitCtx, signedTx.Hash())
-		if err != nil {
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		if receipt.Status == 1 {
-			fmt.Println("✅ 交易成功")
-		} else {
-			fmt.Println("❌ 交易失败")
-		}
-		break
+	receipt, err := bind.WaitMined(waitCtx, client, signedTx)
+	if err != nil {
+		log.Fatal("等待交易确认失败:", err)
 	}
+	elapsed := time.Since(start)
+	if receipt.Status == 1 {
+		fmt.Println("✅ 交易成功")
+	} else {
+		fmt.Println("❌ 交易失败")
+	}
+	fmt.Printf("交易耗时: %s\n", elapsed.Round(time.Millisecond))
 	fmt.Println("=== 完成 ===")
 }
